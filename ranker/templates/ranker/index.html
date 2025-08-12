@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Resume Ranker</h1>
+    
+    <div class="upload-section">
+        <h2>Job Description</h2>
+        <textarea id="job-description"></textarea>
+    </div>
+    
+    <div class="upload-section">
+        <h2>Upload Resumes</h2>
+        <input type="file" id="resume-upload" multiple>
+    </div>
+    
+    <button id="analyze-btn">Analyze Resumes</button>
+    
+    <div id="results">
+        <!-- Results will appear here -->
+    </div>
+</div>
+{% endblock %}

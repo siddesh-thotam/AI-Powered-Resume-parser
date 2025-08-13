@@ -1,12 +1,25 @@
 import spacy
 import pdfminer.high_level
 import docx
+from spacy.matcher import Matcher
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 
-# Load medium/large model for better accuracy
+# Load medium/large model for better 
+
+try:
+    nlp = spacy.load("en_core_web_md")
+except OSError:
+    import en_core_web_md
+    nlp = en_core_web_md.load()
+    print("Loaded en_core_web_md directly")
+except Exception as e:
+    print(f"Error loading model: {e}")
+    nlp = spacy.load("en_core_web_sm")
+
+    
 nlp = spacy.load("en_core_web_md")  # Changed from sm to md for better word vectors
 
 def extract_text(file_path):

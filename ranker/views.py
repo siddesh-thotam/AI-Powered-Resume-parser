@@ -36,65 +36,71 @@ class ResumeAPI(APIView):
 
 class RankAPI(APIView):
     def post(self, request):
-        print("\n=== Received Data ===")  # Debugging
-        print("POST data:", request.POST)
-        print("FILES:", request.FILES)
-        
         try:
-            test_user = User.objects.get_or_create(username='test_user')
-            job_desc = request.data.get('job_description', '')
+            job_desc = request.POST.get('job_description', '')
             resumes = request.FILES.getlist('resumes', [])
             
             if not job_desc or not resumes:
                 return Response(
-                    {'error': 'Job description and at least one resume are required'},
+                    {'error': 'Job description and resumes are required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # Create temporary job description
-            job = JobDescription.objects.create(
-                user=test_user,
-                title="Analysis Job",
-                description=job_desc,
-                required_skills=[],
-                preferred_skills=[],
-                required_experience=0
-            )
+            
+            # Extract skills from job description
+            job_skills = extract_skills(job_desc)
             
             results = []
             for resume_file in resumes:
-                # Save resume file
-                resume = Resume(file=resume_file)
-                resume.save()
+                # Save resume temporarily
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    for chunk in resume_file.chunks():
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
                 
-                # Process text
-                raw_text = extract_text(resume.file.path)
-                processed_text = preprocess_text(raw_text)
-                skills = extract_skills(raw_text)
+                try:
+                    # Process resume
+                    raw_text = extract_text(tmp_path)
+                    processed_text = preprocess_text(raw_text)
+                    resume_skills = extract_skills(raw_text)
+                    experience = extract_experience(raw_text)
+                    
+                    # Calculate scores
+                    scores = calculate_scores(
+                        job_text=job_desc,
+                        resume_text=processed_text,
+                        job_skills=job_skills,
+                        resume_skills=resume_skills
+                    )
+                    
+                    # Weighted overall score
+                    overall_score = (
+                        0.5 * scores['keyword_score'] + 
+                        0.3 * scores['skills_score'] + 
+                        0.2 * scores['experience_score']
+                    ) * 100
+                    
+                    results.append({
+                        'filename': resume_file.name,
+                        'score': overall_score,
+                        'details': {
+                            'keywords': f"{scores['keyword_score']*100:.1f}%",
+                            'skills': f"{scores['skills_score']*100:.1f}%",
+                            'experience': f"{experience} yrs (score: {scores['experience_score']*100:.1f}%)"
+                        }
+                    })
                 
-                # Calculate scores
-                scores = calculate_scores(
-                    job_desc,
-                    processed_text,
-                    [],
-                    skills
-                )
-                
-                results.append({
-                    'filename': resume_file.name,
-                    'score': (scores['keyword_score'] * 0.5 + 
-                             scores['skills_score'] * 0.3 + 
-                             scores['experience_score'] * 0.2) * 100
-                })
+                finally:
+                    os.unlink(tmp_path)  # Clean up temp file
             
             return Response({'results': results})
             
         except Exception as e:
-            print("Error:", str(e))  # Debugging
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
+                    
 def index_view(request):
     return render(request, 'ranker/index.html')
         

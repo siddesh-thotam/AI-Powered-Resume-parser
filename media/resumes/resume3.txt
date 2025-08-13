@@ -1,0 +1,3 @@
+We are looking for a Python Django developer with 3+ years of experience. 
+Required skills: Python, Django, PostgreSQL, REST APIs
+Preferred skills: AWS, Docker, JavaScript

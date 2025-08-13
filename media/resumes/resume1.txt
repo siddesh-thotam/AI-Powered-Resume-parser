@@ -1,0 +1,5 @@
+John Doe
+Python Developer
+
+Skills: Python, Django, PostgreSQL, REST APIs, JavaScript
+Experience: 4 years as Django developer

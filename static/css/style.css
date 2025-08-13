@@ -177,3 +177,68 @@ button:hover {
     background-color: #1e1e1e;
     border-radius: 5px;
 }
+
+.result-card {
+    background-color: #252525;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+}
+
+.score-bar {
+    background-color: #333;
+    height: 10px;
+    border-radius: 10px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+
+.score-progress {
+    background-color: #03dac6;
+    height: 100%;
+    border-radius: 10px;
+
+}
+
+.loading, .no-results {
+    text-align: center;
+    padding: 20px;
+    color: #aaa;
+}
+
+.error-message {
+    background: #ffebee;
+    padding: 15px;
+    border-radius: 4px;
+    color: #c62828;
+    text-align: center;
+}
+
+.error-message button {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #c62828;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.score-display {
+    margin: 10px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.score-bar {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.score-progress {
+    height: 100%;
+    background: #4caf50;
+    transition: width 0.3s;
+}

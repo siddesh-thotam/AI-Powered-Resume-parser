@@ -15,7 +15,7 @@ class JobDescription(models.Model):
         return self.title
 
 class Resume(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE ,null=True , blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE , null=True , blank=True)
     file = models.FileField(upload_to='resumes/')
     original_text = models.TextField()
     processed_text = models.TextField(blank=True, null=True)

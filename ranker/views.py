@@ -5,6 +5,7 @@ from .models import JobDescription, Resume, ResumeRanking
 from .serializers import JobDescriptionSerializer, ResumeSerializer
 from .nlp_processor import extract_text, preprocess_text, extract_skills, calculate_scores
 from django.shortcuts import render
+from django.contrib.auth.models import User
 
 class JobDescriptionAPI(APIView):
     def post(self, request):
@@ -40,6 +41,7 @@ class RankAPI(APIView):
         print("FILES:", request.FILES)
         
         try:
+            test_user = User.objects.get_or_create(username='test_user')
             job_desc = request.data.get('job_description', '')
             resumes = request.FILES.getlist('resumes', [])
             
@@ -51,6 +53,7 @@ class RankAPI(APIView):
 
             # Create temporary job description
             job = JobDescription.objects.create(
+                user=test_user,
                 title="Analysis Job",
                 description=job_desc,
                 required_skills=[],

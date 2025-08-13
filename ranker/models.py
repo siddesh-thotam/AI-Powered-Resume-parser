@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 # Create your models here.
 
 class JobDescription(models.Model):
-    user = models.ForeignKey(User , on_delete=models.CASCADE)
+    user = models.ForeignKey(User , on_delete=models.CASCADE, null=True , blank=True)
     title = models.CharField(max_length=255)
     description = models.TextField()
     required_skills = models.JSONField(default=list)
@@ -15,7 +15,7 @@ class JobDescription(models.Model):
         return self.title
 
 class Resume(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE ,null=True , blank=True)
     file = models.FileField(upload_to='resumes/')
     original_text = models.TextField()
     processed_text = models.TextField(blank=True, null=True)

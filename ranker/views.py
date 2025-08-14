@@ -188,3 +188,6 @@ class RankAPI(APIView):
 
 def index_view(request):
     return render(request, 'ranker/index.html')
+
+def landing_page(request):
+    return render(request , 'ranker/landing.html')

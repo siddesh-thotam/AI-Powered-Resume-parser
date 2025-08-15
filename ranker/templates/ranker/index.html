@@ -1,325 +1,53 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="main-title">🎯 Resume Intelligence Hub</div>
-
-<div class="card">
-    <h2>📝 Job Description</h2>
-    <div class="form-group">
-        <label for="job-description" class="form-label">Enter your job requirements</label>
-        <textarea 
-            id="job-description" 
-            placeholder="Paste your job description here... Include required skills, experience level, and key responsibilities for better matching accuracy."
-        ></textarea>
+<div class="container">
+    <div class="header">
+        <h1 class="pixel-animate">🎮 RESUME RANKER 3000</h1>
+        <p>INSERT JOB DESCRIPTION TO BEGIN</p>
     </div>
-</div>
 
-<div class="card">
-    <h2>📄 Upload Resumes</h2>
-    <div class="form-group">
-        <label for="resume-upload" class="form-label">Select candidate resumes</label>
-        <div class="file-upload-wrapper">
-            <input 
-                type="file" 
-                id="resume-upload" 
-                multiple 
-                accept=".pdf,.docx,.txt"
-                title="Upload PDF, DOCX, or TXT files"
-            >
-        </div>
-        <p style="color: var(--gray-400); font-size: 0.9rem; margin-top: 0.5rem;">
-            ✨ Supports PDF, DOCX, and TXT formats. You can upload multiple files at once.
-        </p>
-    </div>
-</div>
-
-<div class="text-center mt-20">
-    <button id="analyze-btn" class="btn">
-        <span>🚀 Analyze Resumes</span>
-    </button>
-</div>
-
-<div class="card mt-20">
-    <h2>📊 Analysis Results</h2>
-    <div id="results-container" class="results-container">
-        <div class="no-results">
-            Upload resumes and click "Analyze" to see intelligent matching results with detailed compatibility scores.
+    <div class="card pixel-border">
+        <h2>📝 JOB DESCRIPTION</h2>
+        <div class="form-group">
+            <label for="job-description">ENTER JOB REQUIREMENTS:</label>
+            <textarea 
+                id="job-description" 
+                placeholder="PASTE JOB DESCRIPTION HERE..."
+                class="pixel-border"
+            ></textarea>
         </div>
     </div>
-</div>
 
-<style>
-/* Additional specific styles for index page */
-.upload-hint {
-    background: linear-gradient(135deg, rgba(166, 125, 67, 0.1), rgba(173, 0, 19, 0.05));
-    border: 1px solid rgba(166, 125, 67, 0.3);
-    border-radius: 12px;
-    padding: 1rem;
-    margin-top: 1rem;
-    color: var(--gray-300);
-    font-size: 0.9rem;
-}
-
-.upload-hint::before {
-    content: '💡 ';
-    color: var(--primary-gold);
-}
-
-.feature-highlight {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-top: 2rem;
-}
-
-.feature-item {
-    background: rgba(166, 125, 67, 0.1);
-    border: 1px solid rgba(166, 125, 67, 0.2);
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: center;
-    transition: all 0.3s ease;
-}
-
-.feature-item:hover {
-    border-color: var(--primary-gold);
-    transform: translateY(-3px);
-}
-
-.feature-icon {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-    display: block;
-}
-
-.feature-text {
-    color: var(--gray-300);
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-/* Progress indicator */
-.progress-steps {
-    display: flex;
-    justify-content: space-between;
-    margin: 2rem 0;
-    position: relative;
-}
-
-.progress-steps::before {
-    content: '';
-    position: absolute;
-    top: 15px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: rgba(166, 125, 67, 0.3);
-    z-index: 1;
-}
-
-.step {
-    background: var(--gray-800);
-    border: 2px solid rgba(166, 125, 67, 0.3);
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--gray-400);
-    font-weight: bold;
-    position: relative;
-    z-index: 2;
-    transition: all 0.3s ease;
-}
-
-.step.active {
-    background: linear-gradient(45deg, var(--primary-gold), var(--light-gold));
-    border-color: var(--primary-gold);
-    color: var(--black);
-}
-
-.step.completed {
-    background: linear-gradient(45deg, var(--primary-red), var(--dark-red));
-    border-color: var(--primary-red);
-    color: var(--white);
-}
-
-/* Enhanced result cards */
-.result-card-enhanced {
-    background: linear-gradient(135deg, rgba(166, 125, 67, 0.1), rgba(173, 0, 19, 0.05));
-    border: 1px solid rgba(166, 125, 67, 0.4);
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.result-card-enhanced::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(45deg, var(--primary-gold), var(--light-gold));
-}
-
-.result-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
-
-.result-filename {
-    color: var(--primary-gold);
-    font-size: 1.2rem;
-    font-weight: 600;
-    flex: 1;
-}
-
-.result-score {
-    background: linear-gradient(45deg, var(--primary-red), var(--dark-red));
-    color: var(--white);
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-weight: 700;
-    font-size: 1.1rem;
-}
-
-.result-details {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
-.detail-item {
-    text-align: center;
-    padding: 0.8rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    border: 1px solid rgba(166, 125, 67, 0.2);
-}
-
-.detail-label {
-    color: var(--gray-400);
-    font-size: 0.8rem;
-    margin-bottom: 0.3rem;
-    text-transform: uppercase;
-    font-weight: 500;
-}
-
-.detail-value {
-    color: var(--primary-gold);
-    font-weight: 600;
-    font-size: 1rem;
-}
-</style>
-
-<div class="feature-highlight">
-    <div class="feature-item">
-        <span class="feature-icon">🎯</span>
-        <span class="feature-text">Precision Matching</span>
+    <div class="card pixel-border">
+        <h2>📄 UPLOAD RESUMES</h2>
+        <div class="form-group">
+            <label for="resume-upload">SELECT CANDIDATE RESUMES:</label>
+            <div class="file-upload-wrapper pixel-border">
+                <input 
+                    type="file" 
+                    id="resume-upload" 
+                    multiple 
+                    accept=".pdf,.docx,.txt"
+                >
+            </div>
+            <p>SUPPORTS: PDF, DOCX, TXT</p>
+        </div>
     </div>
-    <div class="feature-item">
-        <span class="feature-icon">⚡</span>
-        <span class="feature-text">Lightning Fast</span>
+
+    <div class="text-center">
+        <button id="analyze-btn" class="btn">
+            <span>🚀 ANALYZE RESUMES</span>
+        </button>
     </div>
-    <div class="feature-item">
-        <span class="feature-icon">📊</span>
-        <span class="feature-text">Detailed Analytics</span>
-    </div>
-    <div class="feature-item">
-        <span class="feature-icon">🔒</span>
-        <span class="feature-text">Secure Processing</span>
+
+    <div class="card pixel-border">
+        <h2>📊 ANALYSIS RESULTS</h2>
+        <div id="results-container" class="results-container">
+            <div class="no-results pixel-border">
+                UPLOAD RESUMES AND CLICK "ANALYZE" TO SEE RESULTS
+            </div>
+        </div>
     </div>
 </div>
-
-<script>
-// Add some enhanced interactions
-document.addEventListener('DOMContentLoaded', function() {
-    const jobDescription = document.getElementById('job-description');
-    const resumeUpload = document.getElementById('resume-upload');
-    const analyzeBtn = document.getElementById('analyze-btn');
-
-    // Add character counter for job description
-    if (jobDescription) {
-        const charCounter = document.createElement('div');
-        charCounter.style.cssText = `
-            color: var(--gray-400);
-            font-size: 0.8rem;
-            text-align: right;
-            margin-top: 0.5rem;
-        `;
-        jobDescription.parentNode.appendChild(charCounter);
-
-        jobDescription.addEventListener('input', function() {
-            const count = this.value.length;
-            charCounter.textContent = `${count} characters`;
-            
-            if (count > 50) {
-                charCounter.style.color = 'var(--primary-gold)';
-            } else {
-                charCounter.style.color = 'var(--gray-400)';
-            }
-        });
-    }
-
-    // Add file count display
-    if (resumeUpload) {
-        const fileCounter = document.createElement('div');
-        fileCounter.style.cssText = `
-            color: var(--gray-400);
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-        `;
-        resumeUpload.parentNode.appendChild(fileCounter);
-
-        resumeUpload.addEventListener('change', function() {
-            const count = this.files.length;
-            if (count > 0) {
-                fileCounter.innerHTML = `📁 ${count} file(s) selected`;
-                fileCounter.style.color = 'var(--primary-gold)';
-            } else {
-                fileCounter.innerHTML = '';
-            }
-        });
-    }
-
-    // Add progress steps visualization
-    const progressContainer = document.createElement('div');
-    progressContainer.className = 'progress-steps';
-    progressContainer.innerHTML = `
-        <div class="step" id="step-1">1</div>
-        <div class="step" id="step-2">2</div>
-        <div class="step" id="step-3">3</div>
-    `;
-    
-    // Insert progress steps before the analyze button
-    if (analyzeBtn) {
-        analyzeBtn.parentNode.insertBefore(progressContainer, analyzeBtn);
-        
-        // Update steps based on user actions
-        jobDescription?.addEventListener('input', function() {
-            if (this.value.trim()) {
-                document.getElementById('step-1').classList.add('completed');
-            } else {
-                document.getElementById('step-1').classList.remove('completed');
-            }
-        });
-
-        resumeUpload?.addEventListener('change', function() {
-            if (this.files.length > 0) {
-                document.getElementById('step-2').classList.add('completed');
-            } else {
-                document.getElementById('step-2').classList.remove('completed');
-            }
-        });
-    }
-});
-</script>
 {% endblock %}

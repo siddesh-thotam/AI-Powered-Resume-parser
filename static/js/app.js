@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
 
-            const response = await fetch('/ranker/rank/', {
+            const response = await fetch('/api/rank/', {
                 method: 'POST',
                 body: formData,
                 headers: {

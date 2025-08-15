@@ -6,6 +6,7 @@ from .serializers import JobDescriptionSerializer, ResumeSerializer
 from .nlp_processor import extract_text, preprocess_text, extract_skills, calculate_scores, extract_experience
 from django.shortcuts import render
 from django.contrib.auth.models import User
+from rest_framework.authentication import SessionAuthentication
 import tempfile
 import os
 import logging
@@ -59,6 +60,7 @@ class ResumeAPI(APIView):
             )
 
 class RankAPI(APIView):
+    authentication_classes = [SessionAuthentication]
     def post(self, request):
         try:
             # Debug logging

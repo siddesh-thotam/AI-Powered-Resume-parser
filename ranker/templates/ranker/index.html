@@ -4,49 +4,66 @@
 {% block content %}
 <div class="container">
     <div class="header">
-        <h1 class="pixel-animate">🎮 RESUME RANKER 3000</h1>
-        <p>INSERT JOB DESCRIPTION TO BEGIN</p>
+        <h1>Resume Analysis Tool</h1>
+        <p>Upload job description and resumes for intelligent matching</p>
     </div>
 
-    <div class="card pixel-border">
-        <h2>📝 JOB DESCRIPTION</h2>
-        <div class="form-group">
-            <label for="job-description">ENTER JOB REQUIREMENTS:</label>
-            <textarea 
-                id="job-description" 
-                placeholder="PASTE JOB DESCRIPTION HERE..."
-                class="pixel-border"
-            ></textarea>
+    <div class="card">
+        <div class="card-header">
+            <span class="window-icon icon-file"></span>
+            Job Description
         </div>
-    </div>
-
-    <div class="card pixel-border">
-        <h2>📄 UPLOAD RESUMES</h2>
-        <div class="form-group">
-            <label for="resume-upload">SELECT CANDIDATE RESUMES:</label>
-            <div class="file-upload-wrapper pixel-border">
-                <input 
-                    type="file" 
-                    id="resume-upload" 
-                    multiple 
-                    accept=".pdf,.docx,.txt"
-                >
+        <div class="card-content">
+            <div class="form-group">
+                <label for="job-description">Enter job requirements:</label>
+                <textarea 
+                    id="job-description" 
+                    placeholder="Paste the job description here..."
+                ></textarea>
             </div>
-            <p>SUPPORTS: PDF, DOCX, TXT</p>
         </div>
     </div>
 
-    <div class="text-center">
-        <button id="analyze-btn" class="btn">
-            <span>🚀 ANALYZE RESUMES</span>
+    <div class="card">
+        <div class="card-header">
+            <span class="window-icon icon-folder"></span>
+            Resume Upload
+        </div>
+        <div class="card-content">
+            <div class="form-group">
+                <label for="resume-upload">Select candidate resumes:</label>
+                <div class="file-upload-wrapper">
+                    <input 
+                        type="file" 
+                        id="resume-upload" 
+                        multiple 
+                        accept=".pdf,.docx,.txt"
+                    >
+                </div>
+                <p style="color: #666; font-size: 12px; margin-top: 8px;">
+                    Supported formats: PDF, DOCX, TXT
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mb-4">
+        <button id="analyze-btn" class="btn btn-primary">
+            <span class="window-icon icon-search"></span>
+            Analyze Resumes
         </button>
     </div>
 
-    <div class="card pixel-border">
-        <h2>📊 ANALYSIS RESULTS</h2>
-        <div id="results-container" class="results-container">
-            <div class="no-results pixel-border">
-                UPLOAD RESUMES AND CLICK "ANALYZE" TO SEE RESULTS
+    <div class="card">
+        <div class="card-header">
+            <span class="window-icon icon-progress"></span>
+            Analysis Results
+        </div>
+        <div class="card-content">
+            <div id="results-container" class="results-container">
+                <div class="no-results">
+                    Upload resumes and click "Analyze" to see results
+                </div>
             </div>
         </div>
     </div>

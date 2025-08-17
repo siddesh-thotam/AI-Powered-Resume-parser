@@ -1,28 +1,29 @@
-/* Cozy & Calm Theme - Inspired by Classic Desktop UI */
+/* Dark Theme with HSL Values and Animated Background */
+
 :root {
-    /* Primary Colors from the image */
-    --bg-light: #f5f5f0;
-    --bg-card: #ffffff;
-    --bg-secondary: #e8e8e0;
-    --border-color: #c0c0c0;
-    --border-dark: #808080;
-    --text-primary: #333333;
-    --text-secondary: #666666;
-    --accent-blue: #0078d4;
-    --accent-red: #e74c3c;
-    --accent-green: #27ae60;
-    --accent-yellow: #f1c40f;
-    --shadow: rgba(0, 0, 0, 0.1);
+    /* Dark Theme Colors in HSL */
+    --bg-light: hsl(0, 0%, 4%);         /* Very dark background */
+    --bg-card: hsl(0, 0%, 15%);         /* Dark gray for cards */
+    --bg-secondary: hsl(0, 0%, 9%);     /* Slightly lighter dark */
+    --border-color: hsl(0, 0%, 15%);    /* Dark border */
+    --border-dark: hsl(0, 0%, 9%);      /* Darker border */
+    --text-primary: hsl(0, 0%, 100%);   /* Pure white text */
+    --text-secondary: hsl(0, 0%, 98%);  /* Off-white text */
+    --accent-blue: hsl(0, 0%, 15%);     /* Dark accent */
+    --accent-red: hsl(345, 100%, 50%);  /* Bright red */
+    --accent-green: hsl(120, 100%, 50%); /* Bright lime green */
+    --accent-yellow: hsl(60, 100%, 50%); /* Bright yellow */
+    --shadow: hsla(0, 0%, 0%, 0.3);     /* Darker shadow for dark theme */
     
     /* UI Colors */
-    --window-header: #c0c0c0;
-    --button-face: #f0f0f0;
-    --button-shadow: #808080;
-    --input-bg: #ffffff;
-    --progress-bg: #e0e0e0;
-    --success: #27ae60;
-    --warning: #f39c12;
-    --error: #e74c3c;
+    --window-header: hsl(0, 0%, 45%);   /* Medium gray header */
+    --button-face: hsl(0, 0%, 32%);     /* Dark gray button */
+    --button-shadow: hsl(0, 0%, 25%);   /* Button shadow */
+    --input-bg: hsl(0, 0%, 4%);         /* Very dark input background */
+    --progress-bg: hsl(0, 0%, 4%);    /* White progress background */
+    --success: hsl(120, 100%, 50%);     /* Bright green */
+    --warning: hsl(60, 100%, 50%);      /* Bright yellow */
+    --error: hsl(345, 100%, 50%);       /* Bright red */
 }
 
 /* Reset and Base Styles */
@@ -33,11 +34,72 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg-light);
+    font-family: 'Consolas', 'Courier New', monospace;
+    background: var(--bg-light);
     color: var(--text-primary);
     line-height: 1.4;
     font-size: 14px;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Animated Background Pattern */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: 
+        radial-gradient(circle at 20% 80%, hsla(0, 0%, 8%, 0.8) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, hsla(0, 0%, 12%, 0.8) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, hsla(0, 0%, 6%, 0.8) 0%, transparent 50%);
+    animation: backgroundPulse 8s ease-in-out infinite alternate;
+}
+
+/* Subtle floating particles */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-image: 
+        radial-gradient(2px 2px at 20px 30px, hsla(0, 0%, 100%, 0.1), transparent),
+        radial-gradient(2px 2px at 40px 70px, hsla(0, 0%, 100%, 0.05), transparent),
+        radial-gradient(1px 1px at 90px 40px, hsla(0, 0%, 100%, 0.08), transparent),
+        radial-gradient(1px 1px at 130px 80px, hsla(0, 0%, 100%, 0.03), transparent);
+    background-repeat: repeat;
+    background-size: 200px 100px;
+    animation: floatingParticles 12s linear infinite;
+}
+
+@keyframes backgroundPulse {
+    0% {
+        background: 
+            radial-gradient(circle at 20% 80%, hsla(0, 0%, 8%, 0.8) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, hsla(0, 0%, 12%, 0.8) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, hsla(0, 0%, 6%, 0.8) 0%, transparent 50%);
+    }
+    100% {
+        background: 
+            radial-gradient(circle at 80% 20%, hsla(0, 0%, 10%, 0.9) 0%, transparent 60%),
+            radial-gradient(circle at 20% 80%, hsla(0, 0%, 14%, 0.9) 0%, transparent 60%),
+            radial-gradient(circle at 60% 60%, hsla(0, 0%, 8%, 0.9) 0%, transparent 60%);
+    }
+}
+
+@keyframes floatingParticles {
+    0% {
+        transform: translateY(0px);
+    }
+    100% {
+        transform: translateY(-100px);
+    }
 }
 
 .container {
@@ -48,7 +110,7 @@ body {
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Consolas', 'Courier New', monospace;
     font-weight: 400;
     color: var(--text-primary);
     margin-bottom: 10px;
@@ -74,7 +136,7 @@ h2 {
 }
 
 .card-header {
-    background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+    background: linear-gradient(to bottom, var(--window-header), #8A8A8A);
     border-bottom: 1px solid var(--border-dark);
     padding: 6px 12px;
     display: flex;
@@ -82,13 +144,14 @@ h2 {
     gap: 8px;
     font-size: 13px;
     font-weight: 500;
+    color: var(--text-primary);
 }
 
 .card-content {
     padding: 16px;
 }
 
-/* Window Icons */
+/* Window Icons - Updated with Colors */
 .window-icon {
     width: 16px;
     height: 16px;
@@ -96,33 +159,33 @@ h2 {
 }
 
 .icon-folder {
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%23ffd700" d="M1 2h5l1 2h7v10H1z"/><path fill="%23ffed4a" d="M1 4h13v8H1z"/></svg>') no-repeat center;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%23FFFF00" d="M1 2h5l1 2h7v10H1z"/><path fill="%23FFD700" d="M1 4h13v8H1z"/></svg>') no-repeat center;
     background-size: contain;
 }
 
 .icon-file {
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect fill="%23f0f0f0" x="3" y="1" width="10" height="14" stroke="%23808080"/><path fill="%23ffffff" d="M4 2h8v12H4z"/><path stroke="%23808080" d="M4 4h8M4 6h8M4 8h6"/></svg>') no-repeat center;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect fill="%2300FF40" x="3" y="1" width="10" height="14" stroke="%2300CC33"/><path fill="%23ffffff" d="M4 2h8v12H4z"/><path stroke="%2300FF40" d="M4 4h8M4 6h8M4 8h6"/></svg>') no-repeat center;
     background-size: contain;
 }
 
 .icon-search {
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle fill="none" stroke="%23666" stroke-width="2" cx="7" cy="7" r="4"/><path stroke="%23666" stroke-width="2" d="m13 13-3-3"/></svg>') no-repeat center;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle fill="none" stroke="%23FF0040" stroke-width="2" cx="7" cy="7" r="4"/><path stroke="%23FF0040" stroke-width="2" d="m13 13-3-3"/></svg>') no-repeat center;
     background-size: contain;
 }
 
 .icon-progress {
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect fill="%23e0e0e0" x="2" y="6" width="12" height="4" stroke="%23808080"/><rect fill="%230078d4" x="3" y="7" width="6" height="2"/></svg>') no-repeat center;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect fill="%23262626" x="2" y="6" width="12" height="4" stroke="%23FFFFFF"/><rect fill="%2300FF40" x="3" y="7" width="6" height="2"/></svg>') no-repeat center;
     background-size: contain;
 }
 
-/* Buttons - Windows 95/98 style */
+/* Buttons - Updated with new colors */
 .btn {
-    background: linear-gradient(to bottom, #f8f8f8, #e0e0e0);
+    background: linear-gradient(to bottom, var(--button-face), #404040);
     border: 2px outset var(--border-color);
-    color: var(--text-primary);
+    color: white;
     padding: 6px 16px;
     font-size: 13px;
-    font-family: inherit;
+    font-family: 'Consolas', 'Courier New', monospace;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -132,32 +195,32 @@ h2 {
 }
 
 .btn:hover {
-    background: linear-gradient(to bottom, #ffffff, #e8e8e8);
+    background: linear-gradient(to bottom, #737373, var(--button-face));
 }
 
 .btn:active {
     border: 2px inset var(--border-color);
-    background: linear-gradient(to bottom, #d0d0d0, #f0f0f0);
+    background: linear-gradient(to bottom, #404040, #525252);
 }
 
 .btn:disabled {
-    background: linear-gradient(to bottom, #e8e8e8, #d0d0d0);
-    color: var(--text-secondary);
+    background: linear-gradient(to bottom, #A3A3A3, #737373);
+    color: #E5E5E5;
     cursor: not-allowed;
 }
 
 .btn-primary {
-    background: linear-gradient(to bottom, #0088ff, #0066cc);
+    background: linear-gradient(to bottom, var(--accent-blue), #171717);
     color: white;
-    border: 2px outset #0078d4;
+    border: 2px outset #404040;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(to bottom, #0099ff, #0077dd);
+    background: linear-gradient(to bottom, #404040, var(--accent-blue));
 }
 
 .btn-primary:active {
-    border: 2px inset #0078d4;
+    border: 2px inset #171717;
 }
 
 /* Form Elements */
@@ -177,7 +240,7 @@ textarea, input[type="file"] {
     padding: 6px 8px;
     border: 2px inset var(--border-color);
     background-color: var(--input-bg);
-    font-family: inherit;
+    font-family: 'Consolas', 'Courier New', monospace;
     font-size: 13px;
     color: var(--text-primary);
 }
@@ -185,11 +248,10 @@ textarea, input[type="file"] {
 textarea {
     min-height: 120px;
     resize: vertical;
-    font-family: 'Consolas', 'Courier New', monospace;
 }
 
 textarea:focus, input:focus {
-    outline: 1px dotted var(--text-primary);
+    outline: 1px dotted var(--accent-blue);
     outline-offset: -1px;
 }
 
@@ -208,45 +270,86 @@ textarea:focus, input:focus {
     background: transparent;
 }
 
-/* Progress Bar */
+/* New Segmented Progress Bar Animation */
 .progress-bar {
     width: 100%;
     height: 20px;
-    border: 2px inset var(--border-color);
-    background-color: var(--progress-bg);
+    border: 2px solid var(--border-color);
+    background-color: var(--input-bg);
     margin: 10px 0;
     overflow: hidden;
+    display: flex;
 }
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(to right, #0078d4, #40a9ff);
+    background: var(--text-primary);
     width: 0%;
-    transition: width 0.3s ease;
+    transition: none;
     position: relative;
+    display: flex;
 }
 
-.progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    background: linear-gradient(45deg, 
-        transparent 25%, 
-        rgba(255,255,255,0.3) 25%, 
-        rgba(255,255,255,0.3) 50%, 
-        transparent 50%, 
-        transparent 75%, 
-        rgba(255,255,255,0.3) 75%);
-    background-size: 10px 10px;
-    animation: progress-stripes 0.5s linear infinite;
+/* Segmented Loading Animation - Wave Effect */
+.segmented-progress {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    gap: 1px;
+    background-color: var(--input-bg);
+    padding: 2px;
 }
 
-@keyframes progress-stripes {
-    0% { background-position: 0 0; }
-    100% { background-position: 10px 0; }
+.segment {
+    width: 1.6px;
+    background-color: var(--progress-bg);
+    border: none;
+    animation: segment-wave 3s infinite;
+    flex: none;
+}
+
+.segment:nth-child(1) { animation-delay: 0s; }
+.segment:nth-child(2) { animation-delay: 0.15s; }
+.segment:nth-child(3) { animation-delay: 0.3s; }
+.segment:nth-child(4) { animation-delay: 0.45s; }
+.segment:nth-child(5) { animation-delay: 0.6s; }
+.segment:nth-child(6) { animation-delay: 0.75s; }
+.segment:nth-child(7) { animation-delay: 0.9s; }
+.segment:nth-child(8) { animation-delay: 1.05s; }
+.segment:nth-child(9) { animation-delay: 1.2s; }
+.segment:nth-child(10) { animation-delay: 1.35s; }
+.segment:nth-child(11) { animation-delay: 1.5s; }
+.segment:nth-child(12) { animation-delay: 1.65s; }
+
+@keyframes segment-wave {
+    0% { 
+        background-color: var(--progress-bg);
+    }
+    10%, 30% { 
+        background-color: var(--text-primary);
+    }
+    40%, 100% { 
+        background-color: var(--progress-bg);
+    }
+}
+
+@keyframes progress-loading {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.result-card-enhanced {
+    animation: fadeIn 0.4s ease forwards;
+}
+
+.status-dialog {
+    animation: fadeIn 0.2s ease forwards;
 }
 
 /* Results Container */
@@ -269,7 +372,7 @@ textarea:focus, input:focus {
 }
 
 .result-header {
-    background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+    background: linear-gradient(to bottom, var(--window-header), #8A8A8A);
     border-bottom: 1px solid var(--border-dark);
     padding: 8px 12px;
     display: flex;
@@ -283,13 +386,14 @@ textarea:focus, input:focus {
     display: flex;
     align-items: center;
     gap: 6px;
+    color: var(--text-primary);
 }
 
 .result-score {
-    background: linear-gradient(to bottom, #90c695, #7bb87f);
-    color: white;
+    background: linear-gradient(to bottom, var(--success), #00CC33);
+    color: var(--text-primary);
     padding: 2px 8px;
-    border: 1px outset #7bb87f;
+    border: 1px outset var(--success);
     font-size: 12px;
     font-weight: 600;
 }
@@ -303,7 +407,7 @@ textarea:focus, input:focus {
 
 .score-progress {
     height: 100%;
-    background: linear-gradient(to right, #e74c3c, #f39c12, #27ae60);
+    background: linear-gradient(to right, var(--accent-red), var(--warning), var(--success));
     transition: width 0.8s ease;
 }
 
@@ -379,7 +483,7 @@ textarea:focus, input:focus {
 }
 
 .status-dialog-header {
-    background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+    background: linear-gradient(to bottom, var(--window-header), #8A8A8A);
     border-bottom: 1px solid var(--border-dark);
     padding: 6px 12px;
     font-size: 13px;
@@ -387,6 +491,7 @@ textarea:focus, input:focus {
     display: flex;
     align-items: center;
     gap: 8px;
+    color: var(--text-primary);
 }
 
 .status-dialog-content {
@@ -432,18 +537,19 @@ textarea:focus, input:focus {
 
 /* Skill Tags */
 .skill-tag {
-    background: linear-gradient(to bottom, #fff9c4, #f7dc6f);
-    border: 1px solid #d4ac0d;
+    background: linear-gradient(to bottom, var(--accent-yellow), #CCCC00);
+    border: 1px solid var(--border-color);
     padding: 2px 6px;
     border-radius: 2px;
     font-size: 11px;
     display: inline-block;
     margin: 2px;
+    color: var(--text-primary);
 }
 
 /* Summary Statistics */
 .summary-stats {
-    background: linear-gradient(to bottom, #e8f4fd, #d1ecf1);
+    background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-card));
     border: 2px inset var(--border-color);
     padding: 16px;
     margin-top: 20px;

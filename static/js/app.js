@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Enhanced loading animation with Windows-style dialog
+    // Enhanced loading animation with segmented progress bar
     function showLoadingState() {
         analyzeBtn.disabled = true;
         analyzeBtn.innerHTML = `
@@ -24,7 +24,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="loading-spinner"></div>
                 <p style="margin-bottom: 12px; font-weight: 500;">Analyzing resumes...</p>
                 <div class="progress-bar">
-                    <div class="progress-fill" style="width: 0%; animation: progress-loading 3s ease-in-out infinite;"></div>
+                    <div class="segmented-progress">
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                        <div class="segment"></div>
+                    </div>
                 </div>
                 <p style="color: #666; font-size: 12px; margin-top: 12px;">
                     This may take a few moments depending on file size

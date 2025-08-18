@@ -147,13 +147,16 @@ class RankAPI(APIView):
                         ) * 100
                         
                         # Build result
+                        # In views.py, update the result building:
                         result.update({
                             'score': round(overall_score, 1),
                             'details': {
                                 'keywords': f"{scores['keyword_score']*100:.1f}%",
                                 'skills': f"{scores['skills_score']*100:.1f}%",
                                 'experience': f"{experience} yrs (score: {scores['experience_score']*100:.1f}%)",
-                                'matched_skills': list(set(job_skills) & set(resume_skills))
+                                'matched_skills': scores.get('matched_skills', []),
+                                'missing_skills': scores.get('missing_skills', []),
+                                'skill_weights': scores.get('weighted_skills', {})  # For frontend display
                             }
                         })
                         

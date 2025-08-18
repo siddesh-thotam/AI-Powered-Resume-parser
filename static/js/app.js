@@ -220,13 +220,48 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                     
-                    ${details.matched_skills && details.matched_skills.length > 0 ? `
-                        <div style="margin-top: 12px; padding: 12px; background: #f9f9f9; border-top: 1px solid #ddd;">
-                            <div style="color: #666; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; font-weight: 500;">Matched Skills:</div>
+                    // results display to show skill weights:
+                    
+                    ${details.skill_weights && Object.keys(details.skill_weights).length > 0 ? `
+                        <div style="margin-top: 12px; padding: 12px; background: #f0f8ff; border-top: 1px solid #ddd;">
+                            <div style="color: #666; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; font-weight: 500;">Skill Importance:</div>
                             <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                                ${details.matched_skills.map(skill => 
-                                    `<span class="skill-tag">${escapeHtml(skill)}</span>`
-                                ).join('')}
+                                ${Object.entries(details.skill_weights).map(([skill, weight]) => {
+                                    const isMatched = details.matched_skills.includes(skill);
+                                    const isMissing = details.missing_skills.includes(skill);
+                                    const weightPercent = Math.round((weight / 5) * 100);
+                                    const bgColor = isMatched ? 
+                                        `hsl(120, 100%, ${85 - weightPercent/4}%)` : 
+                                        `hsl(0, 100%, ${85 - weightPercent/4}%)`;
+                                    return `
+                                        <span style="
+                                            background: ${bgColor};
+                                            border: 1px solid #ddd;
+                                            padding: 2px 6px;
+                                            border-radius: 2px;
+                                            font-size: 11px;
+                                            display: inline-block;
+                                            margin: 2px;
+                                            position: relative;
+                                        ">
+                                            ${escapeHtml(skill)}
+                                            <span style="
+                                                position: absolute;
+                                                bottom: -5px;
+                                                left: 0;
+                                                right: 0;
+                                                height: 2px;
+                                                background: ${isMatched ? '#27ae60' : '#e74c3c'};
+                                                width: ${weightPercent}%;
+                                            "></span>
+                                        </span>
+                                    `;
+                                }).join('')}
+                            </div>
+                            <div style="margin-top: 8px; font-size: 11px; color: #666;">
+                                <span style="color: #27ae60;">■</span> = Has skill • 
+                                <span style="color: #e74c3c;">■</span> = Missing skill •
+                                Bar length = Importance
                             </div>
                         </div>
                     ` : ''}

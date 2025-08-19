@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import JobDescription, Resume, ResumeRanking
 from .serializers import JobDescriptionSerializer, ResumeSerializer
-from .nlp_processor import extract_text, preprocess_text, extract_skills, calculate_scores, extract_experience
+from .nlp_processor import extract_text, preprocess_text, extract_skills_with_weights, calculate_scores, extract_experience
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework.authentication import SessionAuthentication
@@ -39,11 +39,11 @@ class ResumeAPI(APIView):
                 try:
                     raw_text = extract_text(resume.file.path)
                     processed_text = preprocess_text(raw_text)
-                    skills = extract_skills(raw_text)
+                    skills = extract_skills_with_weights(raw_text)  # Use simple extract_skills for resumes
                     
                     resume.original_text = raw_text
                     resume.processed_text = processed_text
-                    resume.skills = skills
+                    resume.skills = list(skills.keys()) if isinstance(skills, dict) else skills
                     resume.save()
                     
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -61,9 +61,9 @@ class ResumeAPI(APIView):
 
 class RankAPI(APIView):
     authentication_classes = [SessionAuthentication]
+    
     def post(self, request):
         try:
-            # Debug logging
             logger.info(f"RankAPI request received. POST keys: {request.POST.keys()}, FILES: {request.FILES.keys()}")
             
             job_desc = request.POST.get('job_description', '').strip()
@@ -89,13 +89,13 @@ class RankAPI(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Extract skills from job description
+            # Extract weighted skills from job description
             try:
-                job_skills = extract_skills(job_desc)
-                logger.info(f"Extracted job skills: {job_skills}")
+                weighted_job_skills = extract_skills_with_weights(job_desc)
+                logger.info(f"Extracted job skills with weights: {weighted_job_skills}")
             except Exception as e:
                 logger.error(f"Skill extraction failed: {str(e)}")
-                job_skills = []
+                weighted_job_skills = {}
             
             results = []
             for resume_file in resumes:
@@ -107,11 +107,10 @@ class RankAPI(APIView):
                 }
                 
                 try:
-                    # Validate file type
                     if not resume_file.name.lower().endswith(('.pdf', '.docx', '.txt')):
                         raise ValueError("Only PDF, DOCX, and TXT files are supported")
                     
-                    # Save to temp file with proper extension
+                    # Save to temp file
                     ext = os.path.splitext(resume_file.name)[1]
                     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
                         for chunk in resume_file.chunks():
@@ -120,34 +119,28 @@ class RankAPI(APIView):
                     
                     try:
                         logger.info(f"Processing file: {resume_file.name}")
-                        
-                        # Text extraction
                         raw_text = extract_text(tmp_path)
                         if not raw_text:
                             raise ValueError("Could not extract text from file")
                         
-                        # NLP processing
                         processed_text = preprocess_text(raw_text)
-                        resume_skills = extract_skills(raw_text)
+                        resume_skills = extract_skills_with_weights(raw_text)  # Simple extraction for resume
                         experience = extract_experience(raw_text)
                         
-                        # Calculate scores
                         scores = calculate_scores(
                             job_text=job_desc,
                             resume_text=processed_text,
-                            job_skills=job_skills,
+                            job_skills=weighted_job_skills,  # Pass weighted skills
                             resume_skills=resume_skills
                         )
                         
-                        # Calculate overall score
                         overall_score = (
                             0.5 * scores['keyword_score'] + 
                             0.3 * scores['skills_score'] + 
                             0.2 * scores['experience_score']
                         ) * 100
                         
-                        # Build result
-                        # In views.py, update the result building:
+                        # Build final result
                         result.update({
                             'score': round(overall_score, 1),
                             'details': {
@@ -156,15 +149,14 @@ class RankAPI(APIView):
                                 'experience': f"{experience} yrs (score: {scores['experience_score']*100:.1f}%)",
                                 'matched_skills': scores.get('matched_skills', []),
                                 'missing_skills': scores.get('missing_skills', []),
-                                'skill_weights': scores.get('weighted_skills', {})  # For frontend display
+                                'skill_weights': scores.get('weighted_skills', {}),
+                                'gap_analysis': scores.get('gap_analysis', [])
                             }
                         })
                         
                     except Exception as e:
                         logger.error(f"Error processing {resume_file.name}: {str(e)}")
                         result['error'] = str(e)
-                        raise e
-                        
                     finally:
                         if os.path.exists(tmp_path):
                             os.remove(tmp_path)
@@ -178,7 +170,7 @@ class RankAPI(APIView):
             return Response({
                 'success': True,
                 'results': results,
-                'job_skills': job_skills
+                'job_skills': weighted_job_skills
             })
             
         except Exception as e:
@@ -195,4 +187,4 @@ def index_view(request):
     return render(request, 'ranker/index.html')
 
 def landing_page(request):
-    return render(request , 'ranker/landing.html')
+    return render(request, 'ranker/landing.html')

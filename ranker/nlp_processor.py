@@ -287,117 +287,135 @@ def categorize_skill(skill):
         return 'Other'
 
 def calculate_scores(job_text, resume_text, job_skills, resume_skills):
-    """Enhanced scoring algorithm with weighted matching"""
-    # Extract skills with weights from job description
-    weighted_job_skills = extract_skills_with_weights(job_text)
-    
-
-     # Strength Highlighting - identify skills that are strong in the resume
-    strength_analysis = []
-    resume_skill_weights = extract_skills_with_weights(resume_text)
-
-
-    # If weight extraction failed, fall back to equal weights
-    if not weighted_job_skills:
-        weighted_job_skills = {skill: 1 for skill in job_skills}
-    
-    # Normalize all skills
-    normalized_job_skills = {skill_normalizer.normalize_skill(skill): weight 
-                           for skill, weight in weighted_job_skills.items()}
-
-
-    if not isinstance(resume_skills, set):
-        resume_skills = set(resume_skills) if resume_skills else set()
-    
-    # Normalize resume skills
-    normalized_resume_skills = {skill_normalizer.normalize_skill(skill) 
-                              for skill in resume_skills}
-    
-    # Remove empty strings from normalization
-    normalized_job_skills = {skill: weight for skill, weight in normalized_job_skills.items() 
-                           if skill}
-    normalized_resume_skills = {skill for skill in normalized_resume_skills if skill}
-    
-    # Keyword matching with TF-IDF
-    vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words='english')
-    try:
-        tfidf = vectorizer.fit_transform([job_text, resume_text])
-        keyword_score = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0]
-    except:
-        keyword_score = 0
-
-    if resume_skill_weights:
-        # Normalize resume skill weights (1-5 scale)
-        max_resume_weight = max(resume_skill_weights.values()) if resume_skill_weights.values() else 1
-        normalized_resume_skills = {skill: 1 + 4 * (weight/max_resume_weight) 
-                                  for skill, weight in resume_skill_weights.items()}
-    
-    # Weighted skills matching
-    total_weight = sum(normalized_job_skills.values())
-    matched_weight = 0
-    missing_skills = []
-    
-    for skill, weight in normalized_job_skills.items():
-        if skill in normalized_resume_skills:
-            matched_weight += weight
-        else:
-            missing_skills.append(skill)
-    
-    skills_score = matched_weight / total_weight if total_weight > 0 else 0
-    
-    # Experience matching
-    resume_exp = extract_experience(resume_text)
-    job_exp = extract_experience(job_text) or 3
-    exp_score = min(1, resume_exp / job_exp) if job_exp > 0 else 0
-    
-    # Generate gap analysis
-    gap_analysis = []
-    for skill in missing_skills:
-        importance = normalized_job_skills[skill]
-        gap_analysis.append({
-            'skill': skill,
-            'importance': importance,
-            'category': categorize_skill(skill)
-        })
-
-        if resume_skill_weights:
-        # Normalize resume skill weights (1-5 scale)
-        max_resume_weight = max(resume_skill_weights.values()) if resume_skill_weights.values() else 1
-        weighted_resume_skills = {skill_normalizer.normalize_skill(skill): 1 + 4 * (weight/max_resume_weight) 
-                                for skill, weight in resume_skill_weights.items()}
-        
-        # Remove empty strings
-        weighted_resume_skills = {skill: weight for skill, weight in weighted_resume_skills.items() if skill}
-        
-        for skill, weight in weighted_resume_skills.items():
-            # Consider it a strength if:
-            # 1. It's in the job description (relevant strength)
-            # OR
-            # 2. It's a generally valuable skill (even if not mentioned in JD)
-            if skill in normalized_job_skills or is_generally_valuable_skill(skill):
-                strength_analysis.append({
-                    'skill': skill,
-                    'strength_level': weight,
-                    'category': categorize_skill(skill),
-                    'relevance': 'job-specific' if skill in normalized_job_skills else 'general'
-                })
-
-    
-    # Sort by importance (highest first)
-    gap_analysis.sort(key=lambda x: x['importance'], reverse=True)
-    
-    strength_analysis.sort(key=lambda x: x['strength_level'], reverse=True)
-
-    return {
-        'keyword_score': min(1, max(0, keyword_score)),
-        'skills_score': min(1, max(0, skills_score)),
-        'experience_score': min(1, max(0, exp_score)),
-        'missing_skills': missing_skills,
-        'matched_skills': list(set(normalized_job_skills.keys()) & normalized_resume_skills),
-        'weighted_skills': normalized_job_skills,
-        'gap_analysis': gap_analysis,
-        'strengths': strength_analysis[:10],
+    """Enhanced scoring algorithm with weighted matching and strength highlighting"""
+    # Initialize empty results in case of early returns
+    default_result = {
+        'keyword_score': 0,
+        'skills_score': 0,
+        'experience_score': 0,
+        'missing_skills': [],
+        'matched_skills': [],
+        'weighted_skills': {},
+        'gap_analysis': [],
+        'strengths': []
     }
+
+    # Input validation
+    if not job_text or not resume_text:
+        return default_result
+
+    try:
+        # Extract skills with weights from job description
+        weighted_job_skills = extract_skills_with_weights(job_text) or {}
+        
+        # Extract skills with weights from resume
+        resume_skill_weights = extract_skills_with_weights(resume_text) or {}
+        
+        # Strength Highlighting - initialize empty list
+        strength_analysis = []
+
+        # If weight extraction failed for job, fall back to equal weights
+        if not weighted_job_skills and job_skills:
+            weighted_job_skills = {skill: 1 for skill in job_skills}
+
+        # Normalize all job skills
+        normalized_job_skills = {}
+        for skill, weight in weighted_job_skills.items():
+            normalized_skill = skill_normalizer.normalize_skill(skill)
+            if normalized_skill:
+                normalized_job_skills[normalized_skill] = weight
+
+        # Normalize resume skills (convert to set if needed)
+        if not isinstance(resume_skills, (set, list, tuple)):
+            resume_skills = set()
+        
+        normalized_resume_skills = set()
+        for skill in resume_skills:
+            normalized_skill = skill_normalizer.normalize_skill(skill)
+            if normalized_skill:
+                normalized_resume_skills.add(normalized_skill)
+
+        # Keyword matching with TF-IDF
+        keyword_score = 0
+        try:
+            vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words='english')
+            tfidf = vectorizer.fit_transform([job_text, resume_text])
+            keyword_score = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0]
+        except Exception as e:
+            logger.warning(f"TF-IDF calculation failed: {str(e)}")
+            keyword_score = 0
+
+        # Weighted skills matching
+        total_weight = sum(normalized_job_skills.values())
+        matched_weight = 0
+        missing_skills = []
+        
+        for skill, weight in normalized_job_skills.items():
+            if skill in normalized_resume_skills:
+                matched_weight += weight
+            else:
+                missing_skills.append(skill)
+        
+        skills_score = matched_weight / total_weight if total_weight > 0 else 0
+        
+        # Experience matching
+        resume_exp = extract_experience(resume_text)
+        job_exp = extract_experience(job_text) or 3  # Default to 3 years if not specified
+        exp_score = min(1, resume_exp / job_exp) if job_exp > 0 else 0
+        
+        # Generate gap analysis
+        gap_analysis = []
+        for skill in missing_skills:
+            importance = normalized_job_skills.get(skill, 1)
+            gap_analysis.append({
+                'skill': skill,
+                'importance': importance,
+                'category': categorize_skill(skill)
+            })
+
+        # Strength analysis
+        if resume_skill_weights:
+            # Normalize resume skill weights (1-5 scale)
+            max_resume_weight = max(resume_skill_weights.values()) if resume_skill_weights.values() else 1
+            weighted_resume_skills = {}
+            
+            for skill, weight in resume_skill_weights.items():
+                normalized_skill = skill_normalizer.normalize_skill(skill)
+                if normalized_skill:
+                    weighted_resume_skills[normalized_skill] = 1 + 4 * (weight/max_resume_weight)
+            
+            for skill, weight in weighted_resume_skills.items():
+                # Consider it a strength if:
+                # 1. It's in the job description (relevant strength)
+                # OR
+                # 2. It's a generally valuable skill
+                if skill in normalized_job_skills or is_generally_valuable_skill(skill):
+                    strength_analysis.append({
+                        'skill': skill,
+                        'strength_level': weight,
+                        'category': categorize_skill(skill),
+                        'relevance': 'job-specific' if skill in normalized_job_skills else 'general'
+                    })
+
+        # Sort results
+        gap_analysis.sort(key=lambda x: x['importance'], reverse=True)
+        strength_analysis.sort(key=lambda x: x['strength_level'], reverse=True)
+
+        return {
+            'keyword_score': min(1, max(0, keyword_score)),
+            'skills_score': min(1, max(0, skills_score)),
+            'experience_score': min(1, max(0, exp_score)),
+            'missing_skills': missing_skills,
+            'matched_skills': list(normalized_job_skills.keys() & normalized_resume_skills),
+            'weighted_skills': normalized_job_skills,
+            'gap_analysis': gap_analysis,
+            'strengths': strength_analysis[:10],  # Return top 10 strengths
+        }
+
+    except Exception as e:
+        logger.error(f"Error in calculate_scores: {str(e)}")
+        return default_result
+    
 
 def is_generally_valuable_skill(skill):
     """Determine if a skill is generally valuable even if not in job description"""

@@ -1,4 +1,5 @@
-# Django
+# Create .gitignore file with proper content
+echo "# Python
 *.pyc
 __pycache__/
 *.pyo
@@ -13,105 +14,37 @@ venv.bak/
 # Database
 *.sqlite3
 *.db
-*.mdb
 
 # Environment variables
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 
 # Logs
 *.log
 logs/
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Static files (if collected)
-staticfiles/
-
-# Media files (uploaded by users)
-media/
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# PyCharm
-.idea/
-
-# VS Code
-.vscode/
-
-# macOS
-.DS_Store
-
-# Windows
-Thumbs.db
-
-# Django specific
+# Django
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# Python
-*.pyc
-__pycache__/
+# Static and media files
+staticfiles/
+media/
 
-# Add these to your existing .gitignore
-.env
-.env.local
-.secrets
-config/
-credentials.json
-*.key
-*.pem
-*.cert
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Hugging Face cache (if you use it)
-.cache/huggingface/
+# OS
+.DS_Store
+Thumbs.db
 
-# ML model files (if you download any)
-models/
-*.h5
-*.pkl
-*.joblib
-
+# Coverage
+.coverage
+htmlcov/
+.tox/
+.nox/" > .gitignore

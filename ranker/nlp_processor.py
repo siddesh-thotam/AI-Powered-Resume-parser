@@ -17,15 +17,29 @@ logger = logging.getLogger(__name__)
 
  
 # Load medium/large model for better word vectors
+# Replace the spaCy loading section with this:
 try:
+    # Try to load the medium model
     nlp = spacy.load("en_core_web_md")
 except OSError:
-    import en_core_web_md
-    nlp = en_core_web_md.load()
-    print("Loaded en_core_web_md directly")
+    try:
+        # Try to load the small model if medium is not available
+        nlp = spacy.load("en_core_web_sm")
+    except OSError:
+        # Download and load the small model if not installed
+        import subprocess
+        import sys
+        subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+        nlp = spacy.load("en_core_web_sm")
 except Exception as e:
-    print(f"Error loading model: {e}")
-    nlp = spacy.load("en_core_web_sm")
+    print(f"Error loading spaCy model: {e}")
+    # Fallback to small model or basic processing
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except:
+        # Ultimate fallback - create a minimal nlp object
+        nlp = None
+
 
 class SkillNormalizer:
     def __init__(self):
@@ -152,7 +166,16 @@ def extract_text(file_path):
         return ""
 
 def preprocess_text(text):
-    """More sophisticated text processing"""
+    """More sophisticated text processing with fallback"""
+    if nlp is None:
+        # Basic fallback processing without spaCy
+        text = text.lower()
+        # Simple tokenization and stopword removal
+        tokens = text.split()
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
+        tokens = [token for token in tokens if token not in stop_words and len(token) > 2]
+        return " ".join(tokens)
+    
     doc = nlp(text.lower())
     # Include only meaningful tokens
     tokens = [

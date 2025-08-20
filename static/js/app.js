@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </span>
                                     </div>
                                     <div class="skill-suggestion">
-                                        ${generateSkillSuggestion(gap.skill)}
+                                        ${generateSkillSuggestion(gap)}
                                     </div>
                                 </div>
                             `).join('')}
@@ -408,19 +408,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     // Helper function for skill suggestions
-    function generateSkillSuggestion(skill) {
+    // Enhanced skill suggestion function
+function generateSkillSuggestion(skill) {
+    // Handle both object (from backend) and string (fallback) inputs
+    const skillName = typeof skill === 'object' && skill.skill ? skill.skill : skill;
+    const backendSuggestion = typeof skill === 'object' ? skill.suggestion : null;
+    
+    // Use the suggestion from backend if available
+    if (backendSuggestion) {
+        return backendSuggestion;
+    }
+    
+    // Fallback suggestions for when backend doesn't provide specific suggestions
     const suggestions = {
-        'python': 'Consider highlighting any Python coursework or personal projects',
-        'aws': 'Look for cloud computing certifications or online courses',
-        'react': 'Build a small React project to demonstrate understanding',
-        'communication': 'Add examples of presentations or collaborative projects'
+        'python': 'Build portfolio projects using Python with Django or Flask. Consider Python certifications from recognized institutions.',
+        'django': 'Create full-stack applications with Django REST framework. Take Django-specific courses on platforms like Udemy or Coursera.',
+        'flask': 'Build microservices with Flask and containerize with Docker. Learn authentication and security best practices.',
+        'machine learning': 'Complete ML courses on Coursera or edX. Build projects with scikit-learn and participate in Kaggle competitions.',
+        'tensorflow': 'Develop deep learning models with TensorFlow. Study neural network architectures and deployment strategies.',
+        'aws': 'Get AWS Cloud Practitioner or Solutions Architect certification. Practice with AWS Free Tier for hands-on experience.',
+        'docker': 'Containerize applications and learn Docker Compose. Study Kubernetes for container orchestration.',
+        'javascript': 'Build interactive web applications. Learn modern frameworks like React or Vue.js.',
+        'react': 'Create component-based UIs with React hooks. Learn state management with Redux or Context API.',
+        'sql': 'Practice complex queries and database design. Learn about optimization and indexing strategies.',
+        'postgresql': 'Study advanced PostgreSQL features like window functions. Learn about database administration.',
+        'git': 'Master Git workflows and branching strategies. Practice collaborative development with pull requests.',
+        'api': 'Build RESTful APIs with proper authentication. Learn OpenAPI/Swagger for documentation.',
+        'azure': 'Get Microsoft Azure certifications. Practice with Azure services for cloud applications.',
+        'kubernetes': 'Complete Kubernetes tutorials and get CKA certification. Practice with minikube for local development.',
+        'ml': 'Study machine learning fundamentals and algorithms. Practice with real datasets and problems.',
+        'ai': 'Learn about artificial intelligence concepts and applications. Build AI-powered projects.'
     };
     
-    const defaultSuggestion = 'This skill could be developed through online courses or practical projects';
+    // Find the best matching suggestion
+    const skillLower = skillName.toLowerCase();
+    for (const [key, suggestion] of Object.entries(suggestions)) {
+        if (skillLower.includes(key)) {
+            return suggestion;
+        }
+    }
     
-    return suggestions[skill] || defaultSuggestion;
+    // Default suggestion for unknown skills
+    return 'Develop this skill through online courses, practical projects, or professional certifications. Consider platforms like Coursera, Udemy, or official certification programs.';
 }
-
 
     function showErrorDialog(message) {
         // Create Windows-style error dialog

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import JobDescription, Resume, ResumeRanking
 from .serializers import JobDescriptionSerializer, ResumeSerializer
-from .nlp_processor import extract_text, preprocess_text, extract_skills_with_weights, calculate_scores, extract_experience
+from .nlp_processor import extract_text, preprocess_text, extract_skills_with_weights, calculate_scores, extract_experience,summarize_job_description
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework.authentication import SessionAuthentication

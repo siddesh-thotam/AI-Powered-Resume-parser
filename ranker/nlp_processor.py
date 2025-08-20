@@ -325,6 +325,7 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
             if norm_skill:
                 normalized_resume_skills[norm_skill] = weight
 
+
         # Define is_valid_skill function BEFORE using it
         def is_valid_skill(skill):
             if not skill or len(skill) < 3:
@@ -386,6 +387,15 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
                     'relevance': 'job-specific' if skill in normalized_job_skills else 'general'
                 })
 
+        suggestions = []
+        for skill in missing_skills:
+            suggestions.append({
+                'skill': skill,
+                'suggestion': generate_skill_suggestion(skill),
+                'importance': normalized_job_skills.get(skill, 1),
+                'category': categorize_skill(skill)
+                })
+
         # Sort results
         gap_analysis.sort(key=lambda x: x['importance'], reverse=True)
         strength_analysis.sort(key=lambda x: x['strength_level'], reverse=True)
@@ -397,7 +407,7 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
             'missing_skills': list(missing_skills),
             'matched_skills': list(matched_skills),
             'weighted_skills': normalized_job_skills,
-            'gap_analysis': gap_analysis,
+            'gap_analysis': suggestions,  # This now includes suggestions
             'strengths': strength_analysis[:10],
         }
 
@@ -535,71 +545,109 @@ def generate_skill_suggestion(skill):
             return random.choice(default_suggestions['technical'])
 
 def summarize_job_description(job_text):
-    """Summarize job description using Hugging Face API"""
+    """Enhanced job description summarization"""
     try:
-        # Hugging Face Inference API (free tier)
-        API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
-        
-        # Get API key from environment variables or Django settings
+        # First try to use the Hugging Face API if available
         api_key = os.environ.get('HUGGINGFACE_API_KEY') or getattr(settings, 'HUGGINGFACE_API_KEY', None)
         
-        if not api_key:
-            return generate_fallback_summary(job_text)
+        if api_key:
+            API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+            headers = {"Authorization": f"Bearer {api_key}"}
             
-        headers = {"Authorization": f"Bearer {api_key}"}# You'll need to get a free API key
-        
-        # Prepare the payload
-        payload = {
-            "inputs": job_text,
-            "parameters": {
-                "max_length": 150,
-                "min_length": 50,
-                "do_sample": False
+            payload = {
+                "inputs": job_text,
+                "parameters": {
+                    "max_length": 200,
+                    "min_length": 100,
+                    "do_sample": False
+                }
             }
-        }
+            
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    summary = result[0].get('summary_text', '')
+                    if summary:
+                        return summary
         
-        response = requests.post(API_URL, headers=headers, json=payload)
-        result = response.json()
-        
-        if isinstance(result, list) and len(result) > 0:
-            return result[0].get('summary_text', 'Summary not available')
-        else:
-            return generate_fallback_summary(job_text)
+        # If API fails or not available, use our enhanced fallback
+        return generate_enhanced_summary(job_text)
             
     except Exception as e:
         logger.error(f"JD summarization failed: {str(e)}")
-        return generate_fallback_summary(job_text)
-
-def generate_fallback_summary(job_text):
-    """Fallback summary if API fails"""
-    # Simple keyword-based summary
-    keywords = {
-        'experience': ['years', 'experience', 'exp'],
-        'skills': ['python', 'java', 'javascript', 'sql', 'aws', 'docker'],
-        'level': ['senior', 'junior', 'mid-level', 'lead', 'principal']
-    }
+        return generate_enhanced_summary(job_text)
     
+def generate_enhanced_summary(job_text):
+    """Enhanced summary generation with better extraction"""
+    # Extract key components
     summary_parts = []
     
     # Extract experience requirement
-    experience_match = re.search(r'(\d+)\+?\s*years?', job_text.lower())
+    experience_match = re.search(r'(\d+)[\s\-–]+(\d+)?\s*years?', job_text.lower())
     if experience_match:
         years = experience_match.group(1)
-        summary_parts.append(f"Requires {years}+ years of experience")
+        if experience_match.group(2):
+            years = f"{years}-{experience_match.group(2)}"
+        summary_parts.append(f"{years}+ years of experience")
     
     # Extract seniority level
-    for level in keywords['level']:
+    level_keywords = ['senior', 'junior', 'mid-level', 'lead', 'principal', 'entry-level']
+    for level in level_keywords:
         if level in job_text.lower():
             summary_parts.append(f"{level.title()} level position")
             break
     
-    # Extract key technologies
+    # Extract key technologies with better pattern matching
+    tech_keywords = {
+        'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'ruby', 'php', 'go', 
+        'rust', 'swift', 'kotlin', 'scala', 'r', 'matlab', 'django', 'flask', 'fastapi',
+        'spring', 'react', 'angular', 'vue', 'node', 'express', 'tensorflow', 'pytorch',
+        'scikit-learn', 'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'postgresql',
+        'mysql', 'mongodb', 'sql', 'git', 'html', 'css', 'rest', 'api', 'ml', 'ai'
+    }
+    
     found_skills = []
-    for skill in keywords['skills']:
-        if skill in job_text.lower():
+    for skill in tech_keywords:
+        if re.search(rf'\b{re.escape(skill)}\b', job_text.lower()):
             found_skills.append(skill)
     
     if found_skills:
-        summary_parts.append(f"Key technologies: {', '.join(found_skills[:3])}")
+        # Group and categorize skills
+        languages = [s for s in found_skills if s in ['python', 'java', 'javascript', 'typescript']]
+        frameworks = [s for s in found_skills if s in ['django', 'flask', 'fastapi', 'spring', 'react', 'angular']]
+        ml_tools = [s for s in found_skills if s in ['tensorflow', 'pytorch', 'scikit-learn', 'ml', 'ai']]
+        cloud = [s for s in found_skills if s in ['aws', 'azure', 'gcp', 'docker', 'kubernetes']]
+        databases = [s for s in found_skills if s in ['postgresql', 'mysql', 'mongodb', 'sql']]
+        
+        if languages:
+            summary_parts.append(f"Programming: {', '.join(languages[:3])}")
+        if frameworks:
+            summary_parts.append(f"Frameworks: {', '.join(frameworks[:3])}")
+        if ml_tools:
+            summary_parts.append(f"ML/AI: {', '.join(ml_tools[:3])}")
+        if cloud:
+            summary_parts.append(f"Cloud: {', '.join(cloud[:2])}")
+        if databases:
+            summary_parts.append(f"Databases: {', '.join(databases[:2])}")
     
-    return " • ".join(summary_parts) if summary_parts else "Job description summary not available"
+    # Extract role type
+    role_patterns = [
+        r'(python developer|backend developer|software engineer|ml engineer|ai engineer)',
+        r'(develop|build|create|design).*?(application|system|software|api|service)'
+    ]
+    
+    for pattern in role_patterns:
+        match = re.search(pattern, job_text.lower())
+        if match:
+            role = match.group(1) if match.lastindex else match.group(0)
+            summary_parts.append(f"Role: {role.title()}")
+            break
+    
+    # Extract location if mentioned
+    location_match = re.search(r'location[:\s]+([^\n]+)', job_text.lower())
+    if location_match:
+        summary_parts.append(f"Location: {location_match.group(1).title()}")
+    
+    return " • ".join(summary_parts) if summary_parts else "Comprehensive job description analysis available"

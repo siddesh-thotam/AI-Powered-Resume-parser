@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,12 +23,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-a(z_@m(_1aa&+7@i$sk=_=u-+q-3i=zsh^70@n(vcp_d)$&+pu'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -162,3 +159,9 @@ LOGGING = {
         },
     },
 }
+
+load_dotenv()  # Load environment variables from .env file
+
+SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-secret-key-for-development')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+HUGGINGFACE_API_KEY = os.environ.get('HUGGINGFACE_API_KEY')

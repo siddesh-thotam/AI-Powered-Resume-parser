@@ -74,6 +74,8 @@ class RankAPI(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+            jd_summary = summarize_job_description(job_desc)
+
             if 'resumes' not in request.FILES:
                 logger.warning("No resumes uploaded")
                 return Response(
@@ -170,7 +172,8 @@ class RankAPI(APIView):
             return Response({
                 'success': True,
                 'results': results,
-                'job_skills': weighted_job_skills
+                'job_skills': weighted_job_skills,
+                'jd_summary': jd_summary,
             })
             
         except Exception as e:

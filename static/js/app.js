@@ -136,6 +136,25 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!data?.results || !Array.isArray(data.results)) {
             throw new Error('Invalid results format');
         }
+        
+         if (data.jd_summary) {
+            const jdSummaryCard = document.createElement('div');
+            jdSummaryCard.className = 'feedback-card';
+            jdSummaryCard.innerHTML = `
+                <div class="feedback-header">
+                    <span class="feedback-icon">📋</span>
+                    Job Description Summary
+                </div>
+                <div class="feedback-section">
+                    <h3>What They're Looking For</h3>
+                    <div class="jd-summary">
+                        <p>${escapeHtml(data.jd_summary)}</p>
+                    </div>
+                </div>
+            `;
+            resultsContainer.appendChild(jdSummaryCard);
+        }
+
 
         if (data.results.length === 0) {
             resultsContainer.innerHTML = `
@@ -271,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ` : ''}
             `;
             
-            resultsContainer.appendChild(card);
+             resultsContainer.appendChild(card);
 
             // Add Skill Gap Analysis Feedback Section
             if (details.gap_analysis && details.gap_analysis.length > 0) {
@@ -312,48 +331,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 resultsContainer.appendChild(feedbackCard);
             }
-        });
 
-        // Add Strength Highlighting Section
-        if (details.strengths && details.strengths.length > 0) {
-        const strengthsCard = document.createElement('div');
-        strengthsCard.className = 'feedback-card';
-        strengthsCard.innerHTML = `
-            <div class="feedback-header">
-                <span class="feedback-icon">💪</span>
-                Key Strengths
-            </div>
-            
-            <div class="feedback-section">
-                <h3>Candidate Strengths</h3>
-                <p>Areas where this candidate excels:</p>
-                
-                <div class="strengths-container">
-                    ${details.strengths.map(strength => `
-                        <div class="strength-item">
-                            <div class="strength-skill">
-                                <span class="skill-category ${strength.category.toLowerCase().replace(' ', '-')}">
-                                    ${strength.category}
-                                </span>
-                                ${escapeHtml(strength.skill)}
-                                ${strength.relevance === 'job-specific' ? 
-                                    '<span class="relevance-badge job-specific" title="Directly mentioned in job description">JD</span>' : 
-                                    '<span class="relevance-badge general" title="Generally valuable skill">GEN</span>'}
-                            </div>
-                            <div class="strength-level">
-                                Strength: 
-                                <span class="level-indicator" style="width: ${strength.strength_level * 20}%">
-                                    ${strength.strength_level.toFixed(1)}/5
-                                </span>
-                            </div>
+            // Add Strength Highlighting Section - THIS SHOULD BE INSIDE THE LOOP
+            if (details.strengths && details.strengths.length > 0) {
+                const strengthsCard = document.createElement('div');
+                strengthsCard.className = 'feedback-card';
+                strengthsCard.innerHTML = `
+                    <div class="feedback-header">
+                        <span class="feedback-icon">💪</span>
+                        Key Strengths
+                    </div>
+                    
+                    <div class="feedback-section">
+                        <h3>Candidate Strengths</h3>
+                        <p>Areas where this candidate excels:</p>
+                        
+                        <div class="strengths-container">
+                            ${details.strengths.map(strength => `
+                                <div class="strength-item">
+                                    <div class="strength-skill">
+                                        <span class="skill-category ${strength.category.toLowerCase().replace(' ', '-')}">
+                                            ${strength.category}
+                                        </span>
+                                        ${escapeHtml(strength.skill)}
+                                        ${strength.relevance === 'job-specific' ? 
+                                            '<span class="relevance-badge job-specific" title="Directly mentioned in job description">JD</span>' : 
+                                            '<span class="relevance-badge general" title="Generally valuable skill">GEN</span>'}
+                                    </div>
+                                    <div class="strength-level">
+                                        Strength: 
+                                        <span class="level-indicator" style="width: ${strength.strength_level * 20}%">
+                                            ${strength.strength_level.toFixed(1)}/5
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        resultsContainer.appendChild(strengthsCard);
-    }
-
+                    </div>
+                `;
+                resultsContainer.appendChild(strengthsCard);
+            }
+        });
 
         // Add summary statistics if more than one result
         if (sortedResults.length > 1) {
@@ -388,8 +406,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
-                    // Helper function for skill suggestions
-                    function generateSkillSuggestion(skill) {
+
+    // Helper function for skill suggestions
+    function generateSkillSuggestion(skill) {
     const suggestions = {
         'python': 'Consider highlighting any Python coursework or personal projects',
         'aws': 'Look for cloud computing certifications or online courses',

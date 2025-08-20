@@ -1,13 +1,21 @@
 import spacy
 import pdfminer.high_level
-import docx  # Added missing import
+import docx 
 import numpy as np
 import re
+import logging
+import requests
+import json
+import os 
+from django.conf import settings
+import random
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 from spacy.matcher import Matcher
+logger = logging.getLogger(__name__)
 
+ 
 # Load medium/large model for better word vectors
 try:
     nlp = spacy.load("en_core_web_md")
@@ -21,84 +29,59 @@ except Exception as e:
 
 class SkillNormalizer:
     def __init__(self):
-        # Initialize with common skill variations
         self.skill_map = self._create_skill_mapping()
         self.word_forms = self._create_word_forms()
+        self.stop_phrases = {
+            'qualifications', 'requirements', 'skills', 'experience', 'education',
+            'years', 'plus', 'strong', 'excellent', 'good', 'knowledge', 'ability'
+        }
         
     def _create_skill_mapping(self):
         """Create mapping for common skill variations"""
         return {
             # Programming languages
-            'js': 'javascript',
-            'javascript es6': 'javascript',
-            'es6': 'javascript',
-            'typescript': 'typescript',
-            'ts': 'typescript',
-            'python': 'python',
-            'python3': 'python',
-            'py': 'python',
-            'java': 'java',
-            'c++': 'c++',
-            'cpp': 'c++',
-            'c#': 'c#',
-            'csharp': 'c#',
+            'js': 'javascript', 'javascript es6': 'javascript', 'es6': 'javascript',
+            'typescript': 'typescript', 'ts': 'typescript', 'python': 'python',
+            'python3': 'python', 'py': 'python', 'java': 'java', 'c++': 'c++',
+            'cpp': 'c++', 'c#': 'c#', 'csharp': 'c#',
             
-            # Web technologies
-            'html': 'html',
-            'html5': 'html',
-            'css': 'css',
-            'css3': 'css',
-            'react': 'react',
-            'reactjs': 'react',
-            'react.js': 'react',
-            'angular': 'angular',
-            'angularjs': 'angular',
-            'vue': 'vue',
-            'vuejs': 'vue',
-            'vue.js': 'vue',
-            
-            # Cloud/DevOps
-            'aws': 'amazon web services',
-            'amazon web services': 'amazon web services',
-            'azure': 'microsoft azure',
-            'gcp': 'google cloud platform',
-            'google cloud': 'google cloud platform',
-            'docker': 'docker',
-            'kubernetes': 'kubernetes',
-            'k8s': 'kubernetes',
-            'terraform': 'terraform',
-            'ansible': 'ansible',
+            # Frameworks
+            'django': 'django', 'flask': 'flask', 'spring': 'spring framework',
+            'spring boot': 'spring framework', 'react': 'react', 'reactjs': 'react',
+            'react.js': 'react', 'angular': 'angular', 'angularjs': 'angular',
+            'vue': 'vue', 'vuejs': 'vue', 'vue.js': 'vue', 'node': 'node.js',
+            'nodejs': 'node.js', 'express': 'express.js',
             
             # Databases
-            'postgres': 'postgresql',
-            'postgresql': 'postgresql',
-            'postgres db': 'postgresql',
-            'mysql': 'mysql',
-            'mongo': 'mongodb',
-            'mongodb': 'mongodb',
-            'sql': 'sql',
-            'nosql': 'nosql',
+            'postgres': 'postgresql', 'postgresql': 'postgresql', 'postgres db': 'postgresql',
+            'mysql': 'mysql', 'mongo': 'mongodb', 'mongodb': 'mongodb', 'sql': 'sql',
+            'nosql': 'nosql', 'redis': 'redis',
             
-            # Other common skills
-            'rest': 'rest api',
-            'restful': 'rest api',
-            'rest api': 'rest api',
-            'graphql': 'graphql',
-            'git': 'git',
-            'github': 'git',
-            'gitlab': 'git',
-            'ci/cd': 'ci/cd',
-            'continuous integration': 'ci/cd',
-            'continuous deployment': 'ci/cd',
-            'machine learning': 'machine learning',
-            'ml': 'machine learning',
-            'ai': 'artificial intelligence',
-            'artificial intelligence': 'artificial intelligence',
-            'deep learning': 'deep learning',
-            'dl': 'deep learning',
+            # Cloud
+            'aws': 'amazon web services', 'amazon web services': 'amazon web services',
+            'azure': 'microsoft azure', 'microsoft azure': 'microsoft azure',
+            'gcp': 'google cloud platform', 'google cloud': 'google cloud platform',
+            'google cloud platform': 'google cloud platform',
+            
+            # DevOps
+            'docker': 'docker', 'kubernetes': 'kubernetes', 'k8s': 'kubernetes',
+            'terraform': 'terraform', 'ansible': 'ansible', 'jenkins': 'jenkins',
+            'git': 'git', 'github': 'git', 'gitlab': 'git', 'ci/cd': 'ci/cd',
+            'continuous integration': 'ci/cd', 'continuous deployment': 'ci/cd',
+            
+            # Concepts
+            'oop': 'object oriented programming', 'object oriented programming': 'object oriented programming',
+            'object-oriented programming': 'object oriented programming',
+            'rest': 'rest api', 'restful': 'rest api', 'rest api': 'rest api',
+            'graphql': 'graphql', 'api': 'api development',
+            
+            # Other
+            'machine learning': 'machine learning', 'ml': 'machine learning',
+            'deep learning': 'deep learning', 'dl': 'deep learning',
+            'ai': 'artificial intelligence', 'artificial intelligence': 'artificial intelligence',
             'data science': 'data science',
         }
-        
+            
     def _create_word_forms(self):
         """Create mapping for common word forms (singular/plural, etc.)"""
         return {
@@ -117,32 +100,39 @@ class SkillNormalizer:
         }
     
     def normalize_skill(self, skill):
-        """Normalize a skill name to standard form"""
+        """Enhanced skill normalization"""
         if not skill:
-            return skill
+            return None
             
-        # Convert to lowercase and remove special characters
+        # Convert to lowercase and clean
         skill = skill.lower().strip()
-        skill = re.sub(r'[^a-z0-9+#\. ]', '', skill)
+        skill = re.sub(r'[^a-z0-9+#\.\s]', '', skill)
+        skill = re.sub(r'\s+', ' ', skill).strip()
         
+        # Remove common stop phrases
+        words = skill.split()
+        filtered_words = [word for word in words if word not in self.stop_phrases and len(word) > 2]
+        skill = ' '.join(filtered_words)
+        
+        if not skill:
+            return None
+            
         # Check direct mapping first
         if skill in self.skill_map:
             return self.skill_map[skill]
             
-        # Check for word forms
-        for word, normalized in self.word_forms.items():
-            if word in skill:
-                skill = skill.replace(word, normalized)
+        # Check for partial matches in mapping
+        for key, value in self.skill_map.items():
+            if key in skill:
+                return value
                 
-        # Handle version numbers (e.g., python 3 -> python)
-        skill = re.sub(r'\s*\d+(\.\d+)*\s*', ' ', skill).strip()
-        
-        # Handle common prefixes/suffixes
+        # Handle version numbers and common suffixes
+        skill = re.sub(r'\s*\d+(\.\d+)*\s*', ' ', skill)
+        skill = re.sub(r'\s+(framework|library|tool|technology|language|development|programming)$', '', skill)
         skill = re.sub(r'^(knowledge of|experience with|proficient in|expertise in)\s+', '', skill)
-        skill = re.sub(r'\s+(framework|library|tool|technology|language)$', '', skill)
         
-        return skill.strip()
-
+        return skill.strip() or None
+    
 # Initialize the normalizer at module level
 skill_normalizer = SkillNormalizer()
 
@@ -176,76 +166,90 @@ def preprocess_text(text):
     return " ".join(tokens)
 
 def extract_skills_with_weights(text):
-    """Enhanced skill extraction with normalization"""
-    doc = nlp(text)
+    """Enhanced skill extraction with better pattern matching"""
+    doc = nlp(text.lower())
     skills = defaultdict(int)
     
-    # Skill patterns - expanded list
+    # Enhanced skill patterns - more comprehensive
     patterns = [
         # Programming languages
-        [{"LOWER": {"IN": ["python", "java", "javascript", "typescript", "c++", "c#", "ruby", "php", "go", "rust"]}}],
-        [{"LOWER": "django"}, {"LOWER": "framework", "OP": "?"}],
-        [{"LOWER": "flask"}, {"LOWER": "framework", "OP": "?"}],
-        [{"LOWER": "spring"}, {"LOWER": "framework", "OP": "?"}],
-        [{"LOWER": "react"}, {"LOWER": {"IN": ["js", "native"]}, "OP": "?"}],
-        [{"LOWER": "angular"}, {"IS_DIGIT": True, "OP": "?"}],
-        [{"LOWER": "vue"}, {"LOWER": "js", "OP": "?"}],
+        [{"LOWER": {"IN": ["python", "java", "javascript", "typescript", "c++", "c#", "ruby", 
+                          "php", "go", "rust", "swift", "kotlin", "scala", "r", "matlab"]}}],
+        
+        # Frameworks and libraries
+        [{"LOWER": {"IN": ["django", "flask", "spring", "react", "angular", "vue", "node", 
+                          "express", "laravel", "rails", "tensorflow", "pytorch", "scikit", 
+                          "pandas", "numpy", "fastapi"]}}],
         
         # Databases
-        [{"LOWER": {"IN": ["postgresql", "mysql", "mongodb", "redis", "sqlite", "oracle"]}}],
-        [{"LOWER": "sql"}, {"LOWER": "server", "OP": "?"}],
+        [{"LOWER": {"IN": ["mysql", "postgresql", "mongodb", "redis", "sqlite", "oracle", 
+                          "cassandra", "dynamodb", "cosmosdb", "elasticsearch"]}}],
         
-        # Cloud/DevOps
-        [{"LOWER": {"IN": ["aws", "azure", "gcp", "docker", "kubernetes", "terraform", "ansible"]}}],
-        [{"LOWER": "amazon"}, {"LOWER": "web"}, {"LOWER": "services"}],
-        [{"LOWER": "google"}, {"LOWER": "cloud"}],
-        [{"LOWER": "microsoft"}, {"LOWER": "azure"}],
+        # Cloud and DevOps
+        [{"LOWER": {"IN": ["aws", "azure", "gcp", "docker", "kubernetes", "terraform", 
+                          "ansible", "jenkins", "gitlab", "github", "ci/cd", "devops"]}}],
         
-        # Other technologies
-        [{"LOWER": "rest"}, {"LOWER": "api"}],
-        [{"LOWER": "graphql"}],
-        [{"LOWER": "git"}],
-        [{"LOWER": "jenkins"}],
-        [{"LOWER": "ci/cd"}],
+        # Tools and technologies
+        [{"LOWER": {"IN": ["git", "svn", "mercurial", "jira", "confluence", "linux", "unix", 
+                          "bash", "shell", "rest", "graphql", "soap", "api"]}}],
+        
+        # Concepts and methodologies
+        [{"LOWER": {"IN": ["oop", "agile", "scrum", "kanban", "tdd", "bdd", "microservices", 
+                          "serverless", "machine learning", "deep learning", "ai"]}}],
+        
+        # Specific skill combinations
+        [{"LOWER": "object"}, {"LOWER": "oriented"}, {"LOWER": "programming"}],
+        [{"LOWER": "restful"}, {"LOWER": "api"}],
+        [{"LOWER": "machine"}, {"LOWER": "learning"}],
+        [{"LOWER": "deep"}, {"LOWER": "learning"}],
+        [{"LOWER": "artificial"}, {"LOWER": "intelligence"}],
     ]
     
     matcher = Matcher(nlp.vocab)
     for pattern in patterns:
         matcher.add("SKILLS", [pattern])
     
-    # First pass - count raw occurrences
+    # First pass - pattern matching
     matches = matcher(doc)
     for match_id, start, end in matches:
         skill_text = doc[start:end].text.lower()
         normalized_skill = skill_normalizer.normalize_skill(skill_text)
         if normalized_skill:
-            skills[normalized_skill] += 1
+            skills[normalized_skill] += 2  # Higher weight for exact matches
     
-    # Second pass - check for emphasis (only uppercase since we can't detect bold in plain text)
+    # Second pass - noun phrases that contain technical terms
+    for chunk in doc.noun_chunks:
+        chunk_text = chunk.text.lower()
+        # Check if this noun chunk contains known technical terms
+        technical_terms = ['python', 'java', 'sql', 'database', 'cloud', 'api', 'web', 
+                          'software', 'development', 'programming', 'backend', 'frontend']
+        
+        if any(term in chunk_text for term in technical_terms):
+            normalized_skill = skill_normalizer.normalize_skill(chunk_text)
+            if normalized_skill and normalized_skill not in skills:
+                skills[normalized_skill] += 1
+    
+    # Third pass - entities (organizations, technologies)
     for ent in doc.ents:
-        if ent.label_ in ["ORG", "TECH"]:
+        if ent.label_ in ["ORG", "PRODUCT", "TECH"]:
             normalized_skill = skill_normalizer.normalize_skill(ent.text)
             if normalized_skill:
-                # Only check for uppercase (no bold/title detection in plain text)
-                is_emphasized = ent.text.isupper()
-                skills[normalized_skill] += 3 if is_emphasized else 1
+                skills[normalized_skill] += 1
     
-    # Third pass - check for "required", "must have", etc.
+    # Fourth pass - check for emphasized skills (uppercase, bold patterns)
     for token in doc:
-        if token.text.lower() in ['required', 'requirement', 'must', 'essential']:
-            # Check both children and the token's head for skills
-            for related in list(token.children) + [token.head]:
-                if related.ent_type_ in ["ORG", "TECH"]:
-                    normalized_skill = skill_normalizer.normalize_skill(related.text)
-                    if normalized_skill:
-                        skills[normalized_skill] += 5
+        if token.text.isupper() and len(token.text) > 2:
+            normalized_skill = skill_normalizer.normalize_skill(token.text)
+            if normalized_skill:
+                skills[normalized_skill] += 3
     
     # Normalize weights to 1-5 scale
     if skills:
-        max_weight = max(skills.values())
-        return {skill: 1 + 4 * (weight/max_weight) for skill, weight in skills.items()}
+        max_weight = max(skills.values()) if skills.values() else 1
+        return {skill: min(5, max(1, 1 + 4 * (weight/max_weight))) for skill, weight in skills.items()}
     
     return {}
+
 
 def extract_experience(text):
     """Extract experience in years"""
@@ -288,7 +292,7 @@ def categorize_skill(skill):
 
 def calculate_scores(job_text, resume_text, job_skills, resume_skills):
     """Enhanced scoring algorithm with weighted matching and strength highlighting"""
-    # Initialize empty results in case of early returns
+    # Initialize empty results
     default_result = {
         'keyword_score': 0,
         'skills_score': 0,
@@ -300,40 +304,44 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
         'strengths': []
     }
 
-    # Input validation
     if not job_text or not resume_text:
         return default_result
 
     try:
-        # Extract skills with weights from job description
-        weighted_job_skills = extract_skills_with_weights(job_text) or {}
-        
-        # Extract skills with weights from resume
+        # Extract and normalize skills from both documents
+        job_skill_weights = extract_skills_with_weights(job_text) or {}
         resume_skill_weights = extract_skills_with_weights(resume_text) or {}
         
-        # Strength Highlighting - initialize empty list
-        strength_analysis = []
-
-        # If weight extraction failed for job, fall back to equal weights
-        if not weighted_job_skills and job_skills:
-            weighted_job_skills = {skill: 1 for skill in job_skills}
-
-        # Normalize all job skills
+        # Normalize all skills
         normalized_job_skills = {}
-        for skill, weight in weighted_job_skills.items():
-            normalized_skill = skill_normalizer.normalize_skill(skill)
-            if normalized_skill:
-                normalized_job_skills[normalized_skill] = weight
+        for skill, weight in job_skill_weights.items():
+            norm_skill = skill_normalizer.normalize_skill(skill)
+            if norm_skill:
+                normalized_job_skills[norm_skill] = weight
 
-        # Normalize resume skills (convert to set if needed)
-        if not isinstance(resume_skills, (set, list, tuple)):
-            resume_skills = set()
+        normalized_resume_skills = {}
+        for skill, weight in resume_skill_weights.items():
+            norm_skill = skill_normalizer.normalize_skill(skill)
+            if norm_skill:
+                normalized_resume_skills[norm_skill] = weight
+
+        # Define is_valid_skill function BEFORE using it
+        def is_valid_skill(skill):
+            if not skill or len(skill) < 3:
+                return False
+            # Filter out generic terms
+            generic_terms = {'skill', 'ability', 'experience', 'knowledge', 'development', 
+                            'programming', 'strong', 'excellent', 'good'}
+            words = skill.split()
+            return not any(term in words for term in generic_terms)
         
-        normalized_resume_skills = set()
-        for skill in resume_skills:
-            normalized_skill = skill_normalizer.normalize_skill(skill)
-            if normalized_skill:
-                normalized_resume_skills.add(normalized_skill)
+        # Apply filtering to remove invalid skills
+        normalized_job_skills = {k: v for k, v in normalized_job_skills.items() if is_valid_skill(k)}
+        normalized_resume_skills = {k: v for k, v in normalized_resume_skills.items() if is_valid_skill(k)}
+
+        # Get all unique normalized skill names
+        all_job_skills = set(normalized_job_skills.keys())
+        all_resume_skills = set(normalized_resume_skills.keys())
 
         # Keyword matching with TF-IDF
         keyword_score = 0
@@ -341,61 +349,42 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
             vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words='english')
             tfidf = vectorizer.fit_transform([job_text, resume_text])
             keyword_score = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0]
-        except Exception as e:
-            logger.warning(f"TF-IDF calculation failed: {str(e)}")
+        except Exception:
             keyword_score = 0
 
-        # Weighted skills matching
+        # Skills matching - compare normalized skills
+        matched_skills = all_job_skills & all_resume_skills
+        missing_skills = all_job_skills - all_resume_skills
+        
+        # Calculate skills score based on weights
         total_weight = sum(normalized_job_skills.values())
-        matched_weight = 0
-        missing_skills = []
-        
-        for skill, weight in normalized_job_skills.items():
-            if skill in normalized_resume_skills:
-                matched_weight += weight
-            else:
-                missing_skills.append(skill)
-        
+        matched_weight = sum(normalized_job_skills.get(skill, 0) for skill in matched_skills)
         skills_score = matched_weight / total_weight if total_weight > 0 else 0
-        
+
         # Experience matching
         resume_exp = extract_experience(resume_text)
-        job_exp = extract_experience(job_text) or 3  # Default to 3 years if not specified
+        job_exp = extract_experience(job_text) or 3  # Default to 3 years
         exp_score = min(1, resume_exp / job_exp) if job_exp > 0 else 0
-        
+
         # Generate gap analysis
         gap_analysis = []
         for skill in missing_skills:
-            importance = normalized_job_skills.get(skill, 1)
             gap_analysis.append({
                 'skill': skill,
-                'importance': importance,
+                'importance': normalized_job_skills.get(skill, 1),
                 'category': categorize_skill(skill)
             })
 
         # Strength analysis
-        if resume_skill_weights:
-            # Normalize resume skill weights (1-5 scale)
-            max_resume_weight = max(resume_skill_weights.values()) if resume_skill_weights.values() else 1
-            weighted_resume_skills = {}
-            
-            for skill, weight in resume_skill_weights.items():
-                normalized_skill = skill_normalizer.normalize_skill(skill)
-                if normalized_skill:
-                    weighted_resume_skills[normalized_skill] = 1 + 4 * (weight/max_resume_weight)
-            
-            for skill, weight in weighted_resume_skills.items():
-                # Consider it a strength if:
-                # 1. It's in the job description (relevant strength)
-                # OR
-                # 2. It's a generally valuable skill
-                if skill in normalized_job_skills or is_generally_valuable_skill(skill):
-                    strength_analysis.append({
-                        'skill': skill,
-                        'strength_level': weight,
-                        'category': categorize_skill(skill),
-                        'relevance': 'job-specific' if skill in normalized_job_skills else 'general'
-                    })
+        strength_analysis = []
+        for skill, weight in normalized_resume_skills.items():
+            if skill in normalized_job_skills or is_generally_valuable_skill(skill):
+                strength_analysis.append({
+                    'skill': skill,
+                    'strength_level': weight,
+                    'category': categorize_skill(skill),
+                    'relevance': 'job-specific' if skill in normalized_job_skills else 'general'
+                })
 
         # Sort results
         gap_analysis.sort(key=lambda x: x['importance'], reverse=True)
@@ -405,17 +394,18 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
             'keyword_score': min(1, max(0, keyword_score)),
             'skills_score': min(1, max(0, skills_score)),
             'experience_score': min(1, max(0, exp_score)),
-            'missing_skills': missing_skills,
-            'matched_skills': list(normalized_job_skills.keys() & normalized_resume_skills),
+            'missing_skills': list(missing_skills),
+            'matched_skills': list(matched_skills),
             'weighted_skills': normalized_job_skills,
             'gap_analysis': gap_analysis,
-            'strengths': strength_analysis[:10],  # Return top 10 strengths
+            'strengths': strength_analysis[:10],
         }
 
     except Exception as e:
         logger.error(f"Error in calculate_scores: {str(e)}")
         return default_result
-    
+
+
 
 def is_generally_valuable_skill(skill):
     """Determine if a skill is generally valuable even if not in job description"""
@@ -429,3 +419,187 @@ def is_generally_valuable_skill(skill):
     }
     
     return skill in valuable_skills    
+def generate_skill_suggestion(skill):
+    """Generate more specific and varied skill suggestions"""
+    suggestions = {
+        'python': [
+            'Build a portfolio project using Python with Django or Flask framework',
+            'Complete Python certification from Python Institute or Coursera',
+            'Contribute to open-source Python projects on GitHub'
+        ],
+        'django': [
+            'Create a full-stack application with Django REST framework and React',
+            'Take Django for Beginners or Django for APIs courses',
+            'Learn about Django ORM optimization and database management'
+        ],
+        'flask': [
+            'Build microservices with Flask and containerize with Docker',
+            'Learn Flask authentication and security best practices',
+            'Create RESTful APIs with Flask-RESTful extension'
+        ],
+        'aws': [
+            'Get AWS Cloud Practitioner certification as foundation',
+            'Practice with AWS Free Tier for hands-on experience',
+            'Build and deploy applications using EC2, S3, and Lambda'
+        ],
+        'docker': [
+            'Containerize existing applications and deploy them',
+            'Learn Docker Compose for multi-container applications',
+            'Study Kubernetes for container orchestration (CKA certification)'
+        ],
+        'kubernetes': [
+            'Complete Kubernetes the Hard Way tutorial for deep understanding',
+            'Get Certified Kubernetes Administrator (CKA) certification',
+            'Practice with minikube or kind for local development'
+        ],
+        'postgresql': [
+            'Learn advanced PostgreSQL features like window functions and CTEs',
+            'Practice database optimization and indexing strategies',
+            'Study PostgreSQL administration and backup procedures'
+        ],
+        'mysql': [
+            'Learn MySQL performance tuning and query optimization',
+            'Practice database design and normalization principles',
+            'Study MySQL replication and high availability setups'
+        ],
+        'rest api': [
+            'Build RESTful APIs with proper status codes and error handling',
+            'Learn OpenAPI/Swagger for API documentation',
+            'Practice API security with JWT and OAuth2'
+        ],
+        'git': [
+            'Master Git branching strategies like Git Flow',
+            'Learn advanced Git commands for complex scenarios',
+            'Practice collaborative workflows with pull requests'
+        ],
+        'agile': [
+            'Get Certified Scrum Master (CSM) or similar certification',
+            'Participate in Agile workshops or simulations',
+            'Learn about different Agile frameworks (Scrum, Kanban, XP)'
+        ],
+        'machine learning': [
+            'Complete machine learning courses on Coursera or edX',
+            'Build ML projects with scikit-learn and TensorFlow',
+            'Participate in Kaggle competitions for practical experience'
+        ],
+        'react': [
+            'Build interactive UIs with React hooks and context API',
+            'Learn state management with Redux or Zustand',
+            'Practice component testing with Jest and React Testing Library'
+        ],
+        'angular': [
+            'Learn Angular framework with TypeScript fundamentals',
+            'Build enterprise applications with Angular CLI',
+            'Study Angular services, dependency injection, and RxJS'
+        ]
+    }
+    
+    # Default suggestions categorized by skill type
+    default_suggestions = {
+        'technical': [
+            'Take online courses on platforms like Coursera, Udemy, or edX',
+            'Build practical projects to demonstrate proficiency',
+            'Obtain relevant certifications from recognized institutions'
+        ],
+        'soft': [
+            'Participate in team projects and collaborative activities',
+            'Take communication and leadership workshops',
+            'Practice through role-playing and real-world scenarios'
+        ],
+        'cloud': [
+            'Use cloud provider free tiers for hands-on practice',
+            'Get cloud certifications (AWS, Azure, GCP)',
+            'Build and deploy applications on cloud platforms'
+        ],
+        'database': [
+            'Practice database design and optimization techniques',
+            'Learn SQL advanced features and performance tuning',
+            'Study database administration and management'
+        ]
+    }
+    
+    # Return specific suggestions if available, otherwise default based on category
+    if skill in suggestions:
+        return random.choice(suggestions[skill])
+    else:
+        category = categorize_skill(skill)
+        if category == 'Technical Skill':
+            return random.choice(default_suggestions['technical'])
+        elif category == 'Soft Skill':
+            return random.choice(default_suggestions['soft'])
+        elif category == 'Cloud Technology':
+            return random.choice(default_suggestions['cloud'])
+        elif category == 'Database':
+            return random.choice(default_suggestions['database'])
+        else:
+            return random.choice(default_suggestions['technical'])
+
+def summarize_job_description(job_text):
+    """Summarize job description using Hugging Face API"""
+    try:
+        # Hugging Face Inference API (free tier)
+        API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
+        
+        # Get API key from environment variables or Django settings
+        api_key = os.environ.get('HUGGINGFACE_API_KEY') or getattr(settings, 'HUGGINGFACE_API_KEY', None)
+        
+        if not api_key:
+            return generate_fallback_summary(job_text)
+            
+        headers = {"Authorization": f"Bearer {api_key}"}# You'll need to get a free API key
+        
+        # Prepare the payload
+        payload = {
+            "inputs": job_text,
+            "parameters": {
+                "max_length": 150,
+                "min_length": 50,
+                "do_sample": False
+            }
+        }
+        
+        response = requests.post(API_URL, headers=headers, json=payload)
+        result = response.json()
+        
+        if isinstance(result, list) and len(result) > 0:
+            return result[0].get('summary_text', 'Summary not available')
+        else:
+            return generate_fallback_summary(job_text)
+            
+    except Exception as e:
+        logger.error(f"JD summarization failed: {str(e)}")
+        return generate_fallback_summary(job_text)
+
+def generate_fallback_summary(job_text):
+    """Fallback summary if API fails"""
+    # Simple keyword-based summary
+    keywords = {
+        'experience': ['years', 'experience', 'exp'],
+        'skills': ['python', 'java', 'javascript', 'sql', 'aws', 'docker'],
+        'level': ['senior', 'junior', 'mid-level', 'lead', 'principal']
+    }
+    
+    summary_parts = []
+    
+    # Extract experience requirement
+    experience_match = re.search(r'(\d+)\+?\s*years?', job_text.lower())
+    if experience_match:
+        years = experience_match.group(1)
+        summary_parts.append(f"Requires {years}+ years of experience")
+    
+    # Extract seniority level
+    for level in keywords['level']:
+        if level in job_text.lower():
+            summary_parts.append(f"{level.title()} level position")
+            break
+    
+    # Extract key technologies
+    found_skills = []
+    for skill in keywords['skills']:
+        if skill in job_text.lower():
+            found_skills.append(skill)
+    
+    if found_skills:
+        summary_parts.append(f"Key technologies: {', '.join(found_skills[:3])}")
+    
+    return " • ".join(summary_parts) if summary_parts else "Job description summary not available"

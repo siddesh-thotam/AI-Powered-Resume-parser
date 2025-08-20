@@ -798,3 +798,37 @@ textarea:focus, input:focus {
     background: #9c27b0;
     color: white;
 }
+
+/* JD Summary Styles */
+.jd-summary {
+    background: var(--bg-secondary);
+    padding: 12px;
+    border-radius: 4px;
+    border-left: 4px solid var(--accent-blue);
+    margin-top: 8px;
+}
+
+.jd-summary p {
+    margin: 0;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+/* Enhanced feedback styles */
+.feedback-section h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 4px;
+}
+
+.skill-suggestion {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 8px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 4px;
+    margin-top: 8px;
+    font-style: italic;
+}

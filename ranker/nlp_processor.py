@@ -1,81 +1,36 @@
-import spacy
-import pdfminer.high_level
-import docx 
-import numpy as np
 import re
 import logging
 import requests
 import json
-import os 
-from django.conf import settings
+import os
 import random
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize, sent_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
-from spacy.matcher import Matcher
-logger = logging.getLogger(__name__)
-import sys
+from django.conf import settings
+import pdfminer.high_level
+import docx
 
-
- 
-# Load medium/large model for better word vectors
-# Replace the spaCy loading section with this:
-import logging
 logger = logging.getLogger(__name__)
 
-os.environ.setdefault('BLIS_COMPILER', 'NO_COMPILER')
-
-# Try to import spaCy, but provide fallbacks if it fails
+# Enhanced NLTK download with better error handling
 try:
-    import spacy
-    SPACY_AVAILABLE = True
-except ImportError:
-    SPACY_AVAILABLE = False
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    logger.info("NLTK data downloaded successfully")
+except Exception as e:
+    logger.warning(f"NLTK downloads may have failed: {str(e)}")
 
-# Force fallback if in production
-if os.environ.get('RENDER') or not SPACY_AVAILABLE:
-    nlp = None
-    logger.warning("SpaCy not available. Using fallback text processing.")
-else:
-    try:
-        nlp = spacy.load("en_core_web_sm")
-    except:
-        nlp = None
-# Try to load the model with multiple fallbacks
-if SPACY_AVAILABLE:
-    try:
-        # First try to load the small model
-        nlp = spacy.load("en_core_web_sm")
-        logger.info("Successfully loaded en_core_web_sm model")
-    except OSError:
+class SimpleNLP:
+    def __init__(self):
         try:
-            # Try to download the model
-            logger.info("Downloading en_core_web_sm model...")
-            import subprocess
-            import sys
-            result = subprocess.run([
-                sys.executable, "-m", "spacy", "download", "en_core_web_sm"
-            ], capture_output=True, text=True, timeout=300)
-            
-            if result.returncode == 0:
-                nlp = spacy.load("en_core_web_sm")
-                logger.info("Successfully downloaded and loaded en_core_web_sm model")
-            else:
-                raise Exception(f"spaCy download failed: {result.stderr}")
-                
-        except Exception as e:
-            logger.error(f"Failed to load spaCy model: {e}")
-            # Fallback to simple processing
-            nlp = None
-else:
-    nlp = None
-
-# Create a comprehensive fallback system
-if nlp is None:
-    logger.warning("SpaCy not available. Using fallback text processing.")
-    
-    class SimpleNLP:
-        def __init__(self):
+            self.stop_words = set(stopwords.words('english'))
+        except:
+            # Fallback stopwords if NLTK fails
             self.stop_words = {
                 'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", 
                 "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 
@@ -97,116 +52,73 @@ if nlp is None:
                 'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 
                 'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"
             }
+    
+    def process(self, text):
+        try:
+            tokens = word_tokenize(text.lower())
+        except:
+            # Fallback tokenization if NLTK fails
+            tokens = text.lower().split()
         
-        def __call__(self, text):
-            return SimpleDoc(text, self.stop_words)
-    
-    class SimpleDoc:
-        def __init__(self, text, stop_words):
-            self.text = text
-            self.stop_words = stop_words
-            self.ents = []
-            self.noun_chunks = []
-        
-        def __iter__(self):
-            tokens = self.text.split()
-            for token in tokens:
-                yield SimpleToken(token, self.stop_words)
-    
-    class SimpleToken:
-        def __init__(self, text, stop_words):
-            self.text = text
-            self.lemma_ = text.lower()
-            self.is_stop = text.lower() in stop_words
-            self.is_punct = not text.isalnum()
-            self.is_space = text.isspace()
-    
-    nlp = SimpleNLP()
+        tokens = [
+            token for token in tokens 
+            if token not in self.stop_words 
+            and token.isalnum() 
+            and len(token) > 2
+        ]
+        return tokens
 
+# Initialize the NLP processor
+nlp = SimpleNLP()
 
 class SkillNormalizer:
     def __init__(self):
         self.skill_map = self._create_skill_mapping()
-        self.word_forms = self._create_word_forms()
         self.stop_phrases = {
             'qualifications', 'requirements', 'skills', 'experience', 'education',
             'years', 'plus', 'strong', 'excellent', 'good', 'knowledge', 'ability'
         }
         
     def _create_skill_mapping(self):
-        """Create mapping for common skill variations"""
         return {
-            # Programming languages
             'js': 'javascript', 'javascript es6': 'javascript', 'es6': 'javascript',
             'typescript': 'typescript', 'ts': 'typescript', 'python': 'python',
             'python3': 'python', 'py': 'python', 'java': 'java', 'c++': 'c++',
             'cpp': 'c++', 'c#': 'c#', 'csharp': 'c#',
-            
-            # Frameworks
             'django': 'django', 'flask': 'flask', 'spring': 'spring framework',
             'spring boot': 'spring framework', 'react': 'react', 'reactjs': 'react',
             'react.js': 'react', 'angular': 'angular', 'angularjs': 'angular',
             'vue': 'vue', 'vuejs': 'vue', 'vue.js': 'vue', 'node': 'node.js',
             'nodejs': 'node.js', 'express': 'express.js',
-            
-            # Databases
             'postgres': 'postgresql', 'postgresql': 'postgresql', 'postgres db': 'postgresql',
             'mysql': 'mysql', 'mongo': 'mongodb', 'mongodb': 'mongodb', 'sql': 'sql',
             'nosql': 'nosql', 'redis': 'redis',
-            
-            # Cloud
             'aws': 'amazon web services', 'amazon web services': 'amazon web services',
             'azure': 'microsoft azure', 'microsoft azure': 'microsoft azure',
             'gcp': 'google cloud platform', 'google cloud': 'google cloud platform',
             'google cloud platform': 'google cloud platform',
-            
-            # DevOps
             'docker': 'docker', 'kubernetes': 'kubernetes', 'k8s': 'kubernetes',
             'terraform': 'terraform', 'ansible': 'ansible', 'jenkins': 'jenkins',
             'git': 'git', 'github': 'git', 'gitlab': 'git', 'ci/cd': 'ci/cd',
             'continuous integration': 'ci/cd', 'continuous deployment': 'ci/cd',
-            
-            # Concepts
             'oop': 'object oriented programming', 'object oriented programming': 'object oriented programming',
             'object-oriented programming': 'object oriented programming',
             'rest': 'rest api', 'restful': 'rest api', 'rest api': 'rest api',
             'graphql': 'graphql', 'api': 'api development',
-            
-            # Other
             'machine learning': 'machine learning', 'ml': 'machine learning',
             'deep learning': 'deep learning', 'dl': 'deep learning',
             'ai': 'artificial intelligence', 'artificial intelligence': 'artificial intelligence',
             'data science': 'data science',
         }
-            
-    def _create_word_forms(self):
-        """Create mapping for common word forms (singular/plural, etc.)"""
-        return {
-            'tests': 'testing',
-            'test': 'testing',
-            'testing': 'testing',
-            'developer': 'development',
-            'developers': 'development',
-            'development': 'development',
-            'engineer': 'engineering',
-            'engineers': 'engineering',
-            'engineering': 'engineering',
-            'analyst': 'analysis',
-            'analysts': 'analysis',
-            'analysis': 'analysis',
-        }
     
     def normalize_skill(self, skill):
-        """Enhanced skill normalization"""
         if not skill:
             return None
             
-        # Convert to lowercase and clean
         skill = skill.lower().strip()
-        skill = re.sub(r'[^a-z0-9+#\.\s]', '', skill)
+        skill = re.sub(r'[^a-z0-9+#\.\s-]', '', skill)  # Allow hyphens
         skill = re.sub(r'\s+', ' ', skill).strip()
         
-        # Remove common stop phrases
         words = skill.split()
         filtered_words = [word for word in words if word not in self.stop_phrases and len(word) > 2]
         skill = ' '.join(filtered_words)
@@ -214,27 +126,22 @@ class SkillNormalizer:
         if not skill:
             return None
             
-        # Check direct mapping first
         if skill in self.skill_map:
             return self.skill_map[skill]
             
-        # Check for partial matches in mapping
         for key, value in self.skill_map.items():
             if key in skill:
                 return value
                 
-        # Handle version numbers and common suffixes
         skill = re.sub(r'\s*\d+(\.\d+)*\s*', ' ', skill)
         skill = re.sub(r'\s+(framework|library|tool|technology|language|development|programming)$', '', skill)
         skill = re.sub(r'^(knowledge of|experience with|proficient in|expertise in)\s+', '', skill)
         
         return skill.strip() or None
-    
-# Initialize the normalizer at module level
+
 skill_normalizer = SkillNormalizer()
 
 def extract_text(file_path):
-    """Improved text extraction with error handling"""
     try:
         if file_path.endswith('.pdf'):
             return pdfminer.high_level.extract_text(file_path)
@@ -245,145 +152,109 @@ def extract_text(file_path):
             with open(file_path, 'r', encoding='utf-8') as f:
                 return f.read()
     except Exception as e:
-        print(f"Error extracting text: {str(e)}")
+        logger.error(f"Error extracting text: {str(e)}")
         return ""
 
 def preprocess_text(text):
-    """More sophisticated text processing with fallback"""
-    if hasattr(nlp, 'load'):  # Real spaCy
-        doc = nlp(text.lower())
-        tokens = [
-            token.lemma_ 
-            for token in doc 
-            if not token.is_stop 
-            and not token.is_punct 
-            and not token.is_space
-            and len(token.lemma_) > 2
-        ]
-        return " ".join(tokens)
-    else:
-        # Fallback processing
-        text = text.lower()
-        tokens = text.split()
-        tokens = [token for token in tokens if token not in nlp.stop_words and len(token) > 2]
-        return " ".join(tokens)
-    
-    doc = nlp(text.lower())
-    # Include only meaningful tokens
-    tokens = [
-        token.lemma_ 
-        for token in doc 
-        if not token.is_stop 
-        and not token.is_punct 
-        and not token.is_space
-        and len(token.lemma_) > 2
-    ]
+    text = text.lower()
+    tokens = nlp.process(text)
     return " ".join(tokens)
 
 def extract_skills_with_weights(text):
-    """Enhanced skill extraction with better pattern matching"""
-
-    if not hasattr(nlp, 'load') or nlp is None:
-        # Fallback skill extraction without spaCy
-        logger.warning("Using fallback skill extraction")
-        return simple_skill_extraction(text)
-    
-    doc = nlp(text.lower())
+    text_lower = text.lower()
     skills = defaultdict(int)
     
-    # Enhanced skill patterns - more comprehensive
-    patterns = [
-        # Programming languages
-        [{"LOWER": {"IN": ["python", "java", "javascript", "typescript", "c++", "c#", "ruby", 
-                          "php", "go", "rust", "swift", "kotlin", "scala", "r", "matlab"]}}],
-        
-        # Frameworks and libraries
-        [{"LOWER": {"IN": ["django", "flask", "spring", "react", "angular", "vue", "node", 
-                          "express", "laravel", "rails", "tensorflow", "pytorch", "scikit", 
-                          "pandas", "numpy", "fastapi"]}}],
-        
-        # Databases
-        [{"LOWER": {"IN": ["mysql", "postgresql", "mongodb", "redis", "sqlite", "oracle", 
-                          "cassandra", "dynamodb", "cosmosdb", "elasticsearch"]}}],
-        
-        # Cloud and DevOps
-        [{"LOWER": {"IN": ["aws", "azure", "gcp", "docker", "kubernetes", "terraform", 
-                          "ansible", "jenkins", "gitlab", "github", "ci/cd", "devops"]}}],
-        
-        # Tools and technologies
-        [{"LOWER": {"IN": ["git", "svn", "mercurial", "jira", "confluence", "linux", "unix", 
-                          "bash", "shell", "rest", "graphql", "soap", "api"]}}],
-        
-        # Concepts and methodologies
-        [{"LOWER": {"IN": ["oop", "agile", "scrum", "kanban", "tdd", "bdd", "microservices", 
-                          "serverless", "machine learning", "deep learning", "ai"]}}],
-        
-        # Specific skill combinations
-        [{"LOWER": "object"}, {"LOWER": "oriented"}, {"LOWER": "programming"}],
-        [{"LOWER": "restful"}, {"LOWER": "api"}],
-        [{"LOWER": "machine"}, {"LOWER": "learning"}],
-        [{"LOWER": "deep"}, {"LOWER": "learning"}],
-        [{"LOWER": "artificial"}, {"LOWER": "intelligence"}],
-    ]
+    # Enhanced skill patterns with better coverage
+    skill_patterns = {
+        'python': r'\bpython\b',
+        'java': r'\bjava\b',
+        'javascript': r'\bjavascript\b|\bjs\b',
+        'typescript': r'\btypescript\b|\bts\b',
+        'c++': r'\bc\+\+\b',
+        'c#': r'\bc#\b|\bcsharp\b',
+        'django': r'\bdjango\b',
+        'flask': r'\bflask\b',
+        'react': r'\breact\b|\breactjs\b|\breact\.js\b',
+        'angular': r'\bangular\b|\bangularjs\b',
+        'vue': r'\bvue\b|\bvuejs\b|\bvue\.js\b',
+        'node.js': r'\bnode\.js\b|\bnodejs\b',
+        'express.js': r'\bexpress\.js\b|\bexpressjs\b',
+        'aws': r'\baws\b|\bamazon web services\b',
+        'azure': r'\bazure\b|\bmicrosoft azure\b',
+        'gcp': r'\bgcp\b|\bgoogle cloud\b|\bgoogle cloud platform\b',
+        'docker': r'\bdocker\b',
+        'kubernetes': r'\bkubernetes\b|\bk8s\b',
+        'postgresql': r'\bpostgresql\b|\bpostgres\b',
+        'mysql': r'\bmysql\b',
+        'mongodb': r'\bmongodb\b|\bmongo\b',
+        'sql': r'\bsql\b',
+        'git': r'\bgit\b',
+        'machine learning': r'\bmachine learning\b|\bml\b',
+        'artificial intelligence': r'\bartificial intelligence\b|\bai\b',
+        'data science': r'\bdata science\b',
+        'rest api': r'\brest api\b|\brestful api\b|\brest\b',
+        'graphql': r'\bgraphql\b',
+        'html': r'\bhtml\b',
+        'css': r'\bcss\b',
+        'bootstrap': r'\bbootstrap\b',
+        'tailwind': r'\btailwind\b',
+        'jenkins': r'\bjenkins\b',
+        'terraform': r'\bterraform\b',
+        'ansible': r'\bansible\b',
+        'tableau': r'\btableau\b',
+        'power bi': r'\bpower bi\b|\bpowerbi\b',
+        'excel': r'\bexcel\b',
+        'sap': r'\bsap\b',
+        'hana': r'\bhana\b',
+        'etl': r'\betl\b',
+        'data warehousing': r'\bdata warehousing\b',
+        'data modeling': r'\bdata modeling\b|\bdata modelling\b'
+    }
     
-    matcher = Matcher(nlp.vocab)
-    for pattern in patterns:
-        matcher.add("SKILLS", [pattern])
+    # Find skills using regex patterns - PRIMARY METHOD
+    for skill_name, pattern in skill_patterns.items():
+        try:
+            matches = re.findall(pattern, text_lower, re.IGNORECASE)
+            if matches:
+                count = len(matches)
+                skills[skill_name] += min(5, 1 + count * 0.5)
+        except Exception as e:
+            logger.warning(f"Error processing pattern for {skill_name}: {e}")
     
-    # First pass - pattern matching
-    matches = matcher(doc)
-    for match_id, start, end in matches:
-        skill_text = doc[start:end].text.lower()
-        normalized_skill = skill_normalizer.normalize_skill(skill_text)
-        if normalized_skill:
-            skills[normalized_skill] += 2  # Higher weight for exact matches
-    
-    # Second pass - noun phrases that contain technical terms
-    for chunk in doc.noun_chunks:
-        chunk_text = chunk.text.lower()
-        # Check if this noun chunk contains known technical terms
-        technical_terms = ['python', 'java', 'sql', 'database', 'cloud', 'api', 'web', 
-                          'software', 'development', 'programming', 'backend', 'frontend']
+    # SECONDARY METHOD: Only look for specific technical contexts
+    try:
+        # Look for skills mentioned in specific contexts (e.g., after "experience with", "knowledge of")
+        context_patterns = [
+            r'(experience with|knowledge of|proficient in|expertise in|skills in)\s+([a-zA-Z+#\s]+)',
+            r'(python|java|javascript|sql|aws|azure|docker|kubernetes|react|angular|vue|node)',
+        ]
         
-        if any(term in chunk_text for term in technical_terms):
-            normalized_skill = skill_normalizer.normalize_skill(chunk_text)
-            if normalized_skill and normalized_skill not in skills:
-                skills[normalized_skill] += 1
+        for pattern in context_patterns:
+            matches = re.finditer(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                if match.lastindex >= 2:
+                    potential_skill = match.group(2).strip()
+                else:
+                    potential_skill = match.group(1).strip()
+                
+                normalized = skill_normalizer.normalize_skill(potential_skill)
+                if normalized and normalized in skill_patterns:
+                    skills[normalized] += 1
+                    
+    except Exception as e:
+        logger.warning(f"Error in context-based skill extraction: {e}")
     
-    # Third pass - entities (organizations, technologies)
-    for ent in doc.ents:
-        if ent.label_ in ["ORG", "PRODUCT", "TECH"]:
-            normalized_skill = skill_normalizer.normalize_skill(ent.text)
-            if normalized_skill:
-                skills[normalized_skill] += 1
-    
-    # Fourth pass - check for emphasized skills (uppercase, bold patterns)
-    for token in doc:
-        if token.text.isupper() and len(token.text) > 2:
-            normalized_skill = skill_normalizer.normalize_skill(token.text)
-            if normalized_skill:
-                skills[normalized_skill] += 3
-    
-    # Normalize weights to 1-5 scale
-    if skills:
-        max_weight = max(skills.values()) if skills.values() else 1
-        return {skill: min(5, max(1, 1 + 4 * (weight/max_weight))) for skill, weight in skills.items()}
-    
-    return {}
-
+    return dict(skills)
 
 def extract_experience(text):
-    """Extract experience in years"""
-    doc = nlp(text)
-    experience = 0
-    
-    # Match experience patterns
     patterns = [
         r"(\d+)\s*(years?|yrs?)\s*(of)?\s*(experience)?",
         r"experienced.*?(\d+)\s*(years?|yrs?)",
-        r"(\d+)\+?\s*(years?|yrs?)\s*(in|of)"
+        r"(\d+)\+?\s*(years?|yrs?)\s*(in|of)",
+        r"(\d+)[\s\-–]+(\d+)?\s*years?"
     ]
     
+    experience = 0
     for pattern in patterns:
         for match in re.finditer(pattern, text, re.IGNORECASE):
             try:
@@ -395,25 +266,92 @@ def extract_experience(text):
     return experience
 
 def categorize_skill(skill):
-    """Categorize skills for better feedback"""
     tech_skills = {'python', 'java', 'javascript', 'c++', 'html', 'css', 
-                  'react', 'angular', 'node', 'docker', 'kubernetes', 'aws'}
-    soft_skills = {'communication', 'leadership', 'teamwork', 'problem-solving'}
+                  'react', 'angular', 'node', 'docker', 'kubernetes', 'aws',
+                  'typescript', 'c#', 'ruby', 'php', 'go', 'rust', 'swift'}
+    soft_skills = {'communication', 'leadership', 'teamwork', 'problem-solving',
+                  'problem solving', 'critical thinking', 'time management'}
     
-    if skill in tech_skills:
+    skill_lower = skill.lower()
+    
+    if any(tech in skill_lower for tech in tech_skills):
         return 'Technical Skill'
-    elif skill in soft_skills:
+    elif any(soft in skill_lower for soft in soft_skills):
         return 'Soft Skill'
-    elif 'aws' in skill or 'azure' in skill or 'cloud' in skill:
+    elif 'aws' in skill_lower or 'azure' in skill_lower or 'cloud' in skill_lower or 'gcp' in skill_lower:
         return 'Cloud Technology'
-    elif 'sql' in skill or 'database' in skill:
+    elif 'sql' in skill_lower or 'database' in skill_lower or 'mysql' in skill_lower or 'postgres' in skill_lower:
         return 'Database'
     else:
         return 'Other'
 
+def is_generally_valuable_skill(skill):
+    """Determine if a skill is generally valuable even if not in job description"""
+    valuable_skills = {
+        # Technical skills
+        'python', 'javascript', 'java', 'c++', 'c#', 'sql', 
+        'aws', 'azure', 'docker', 'kubernetes', 'react', 'angular',
+        'typescript', 'node.js', 'express.js', 'django', 'flask',
+        # Soft skills
+        'communication', 'leadership', 'teamwork', 'problem solving',
+        'critical thinking', 'time management', 'adaptability'
+    }
+    
+    return skill in valuable_skills
+
+def generate_skill_suggestion(skill):
+    """Generate specific skill suggestions"""
+    suggestions = {
+        'python': [
+            'Build a portfolio project using Python with Django or Flask framework',
+            'Complete Python certification from Python Institute or Coursera',
+            'Contribute to open-source Python projects on GitHub'
+        ],
+        'django': [
+            'Create a full-stack application with Django REST framework and React',
+            'Take Django for Beginners or Django for APIs courses',
+            'Learn about Django ORM optimization and database management'
+        ],
+        # ... (keep your existing suggestions)
+    }
+    
+    # Default suggestions
+    default_suggestions = {
+        'Technical Skill': [
+            'Take online courses on platforms like Coursera, Udemy, or edX',
+            'Build practical projects to demonstrate proficiency',
+            'Obtain relevant certifications from recognized institutions'
+        ],
+        'Soft Skill': [
+            'Participate in team projects and collaborative activities',
+            'Take communication and leadership workshops',
+            'Practice through role-playing and real-world scenarios'
+        ],
+        'Cloud Technology': [
+            'Use cloud provider free tiers for hands-on practice',
+            'Get cloud certifications (AWS, Azure, GCP)',
+            'Build and deploy applications on cloud platforms'
+        ],
+        'Database': [
+            'Practice database design and optimization techniques',
+            'Learn SQL advanced features and performance tuning',
+            'Study database administration and management'
+        ],
+        'Other': [
+            'Research the skill and its applications in your industry',
+            'Find online tutorials and practice exercises',
+            'Connect with professionals who have this skill'
+        ]
+    }
+    
+    # Return specific suggestions if available, otherwise default based on category
+    if skill in suggestions:
+        return random.choice(suggestions[skill])
+    else:
+        category = categorize_skill(skill)
+        return random.choice(default_suggestions.get(category, default_suggestions['Other']))
+
 def calculate_scores(job_text, resume_text, job_skills, resume_skills):
-    """Enhanced scoring algorithm with weighted matching and strength highlighting"""
-    # Initialize empty results
     default_result = {
         'keyword_score': 0,
         'skills_score': 0,
@@ -429,11 +367,15 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
         return default_result
 
     try:
-        # Extract and normalize skills from both documents
+        # Extract skills
         job_skill_weights = extract_skills_with_weights(job_text) or {}
         resume_skill_weights = extract_skills_with_weights(resume_text) or {}
         
-        # Normalize all skills
+        # Debug: Log extracted skills
+        logger.info(f"Job skills: {job_skill_weights}")
+        logger.info(f"Resume skills: {resume_skill_weights}")
+        
+        # Normalize skills
         normalized_job_skills = {}
         for skill, weight in job_skill_weights.items():
             norm_skill = skill_normalizer.normalize_skill(skill)
@@ -446,22 +388,17 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
             if norm_skill:
                 normalized_resume_skills[norm_skill] = weight
 
-
-        # Define is_valid_skill function BEFORE using it
         def is_valid_skill(skill):
             if not skill or len(skill) < 3:
                 return False
-            # Filter out generic terms
             generic_terms = {'skill', 'ability', 'experience', 'knowledge', 'development', 
                             'programming', 'strong', 'excellent', 'good'}
             words = skill.split()
             return not any(term in words for term in generic_terms)
         
-        # Apply filtering to remove invalid skills
         normalized_job_skills = {k: v for k, v in normalized_job_skills.items() if is_valid_skill(k)}
         normalized_resume_skills = {k: v for k, v in normalized_resume_skills.items() if is_valid_skill(k)}
 
-        # Get all unique normalized skill names
         all_job_skills = set(normalized_job_skills.keys())
         all_resume_skills = set(normalized_resume_skills.keys())
 
@@ -471,28 +408,30 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
             vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words='english')
             tfidf = vectorizer.fit_transform([job_text, resume_text])
             keyword_score = cosine_similarity(tfidf[0:1], tfidf[1:2])[0][0]
-        except Exception:
+        except Exception as e:
+            logger.warning(f"TF-IDF failed: {e}")
             keyword_score = 0
 
-        # Skills matching - compare normalized skills
+        # Skills matching
         matched_skills = all_job_skills & all_resume_skills
         missing_skills = all_job_skills - all_resume_skills
         
-        # Calculate skills score based on weights
-        total_weight = sum(normalized_job_skills.values())
+        total_weight = sum(normalized_job_skills.values()) if normalized_job_skills else 1
         matched_weight = sum(normalized_job_skills.get(skill, 0) for skill in matched_skills)
         skills_score = matched_weight / total_weight if total_weight > 0 else 0
 
         # Experience matching
         resume_exp = extract_experience(resume_text)
-        job_exp = extract_experience(job_text) or 3  # Default to 3 years
+        job_exp = extract_experience(job_text) or 3
         exp_score = min(1, resume_exp / job_exp) if job_exp > 0 else 0
 
-        # Generate gap analysis
+        # Generate gap analysis with suggestions
         gap_analysis = []
         for skill in missing_skills:
+            suggestion = generate_skill_suggestion(skill)
             gap_analysis.append({
                 'skill': skill,
+                'suggestion': suggestion,
                 'importance': normalized_job_skills.get(skill, 1),
                 'category': categorize_skill(skill)
             })
@@ -508,16 +447,6 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
                     'relevance': 'job-specific' if skill in normalized_job_skills else 'general'
                 })
 
-        suggestions = []
-        for skill in missing_skills:
-            suggestions.append({
-                'skill': skill,
-                'suggestion': generate_skill_suggestion(skill),
-                'importance': normalized_job_skills.get(skill, 1),
-                'category': categorize_skill(skill)
-                })
-
-        # Sort results
         gap_analysis.sort(key=lambda x: x['importance'], reverse=True)
         strength_analysis.sort(key=lambda x: x['strength_level'], reverse=True)
 
@@ -528,12 +457,14 @@ def calculate_scores(job_text, resume_text, job_skills, resume_skills):
             'missing_skills': list(missing_skills),
             'matched_skills': list(matched_skills),
             'weighted_skills': normalized_job_skills,
-            'gap_analysis': suggestions,  # This now includes suggestions
+            'gap_analysis': gap_analysis,
             'strengths': strength_analysis[:10],
         }
 
     except Exception as e:
         logger.error(f"Error in calculate_scores: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return default_result
 
 

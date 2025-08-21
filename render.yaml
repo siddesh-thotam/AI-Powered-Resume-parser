@@ -2,7 +2,10 @@ services:
   - type: web
     name: ai-resume-ranker
     env: python
-    buildCommand: pip install -r requirements.txt && python -m spacy download en_core_web_sm && python manage.py collectstatic --noinput
+    buildCommand: |
+      pip install -r requirements.txt
+      python -m spacy download en_core_web_sm || echo "spaCy download failed, using fallback"
+      python manage.py collectstatic --noinput
     startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION

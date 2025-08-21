@@ -7,6 +7,7 @@ python-docx==1.1.0
 scikit-learn==1.5.0
 numpy==1.26.4
 requests==2.32.3
-spacy==3.7.4
-# Use the wheel version to avoid compilation
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0-py3-none-any.whl
+
+# Use a version of spaCy that has pre-built wheels for Python 3.11
+spacy==3.5.4
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.5.0/en_core_web_sm-3.5.0-py3-none-any.whl

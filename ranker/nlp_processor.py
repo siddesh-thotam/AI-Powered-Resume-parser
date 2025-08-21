@@ -18,28 +18,84 @@ logger = logging.getLogger(__name__)
  
 # Load medium/large model for better word vectors
 # Replace the spaCy loading section with this:
+import logging
+logger = logging.getLogger(__name__)
+
+# SpaCy model loading with comprehensive error handling
 try:
-    # Try to load the medium model
-    nlp = spacy.load("en_core_web_md")
+    # First try to load the small model
+    nlp = spacy.load("en_core_web_sm")
+    logger.info("Successfully loaded en_core_web_sm model")
 except OSError:
     try:
-        # Try to load the small model if medium is not available
-        nlp = spacy.load("en_core_web_sm")
-    except OSError:
-        # Download and load the small model if not installed
+        # Try to download and load the model
+        logger.info("Downloading en_core_web_sm model...")
         import subprocess
         import sys
         subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
         nlp = spacy.load("en_core_web_sm")
-except Exception as e:
-    print(f"Error loading spaCy model: {e}")
-    # Fallback to small model or basic processing
-    try:
-        nlp = spacy.load("en_core_web_sm")
-    except:
-        # Ultimate fallback - create a minimal nlp object
+        logger.info("Successfully downloaded and loaded en_core_web_sm model")
+    except Exception as e:
+        logger.error(f"Failed to download spaCy model: {e}")
+        # Create a minimal fallback
         nlp = None
+except Exception as e:
+    logger.error(f"Error loading spaCy model: {e}")
+    nlp = None
 
+# If spaCy is not available, create a simple fallback processor
+if nlp is None:
+    logger.warning("SpaCy model not available. Using fallback text processing.")
+    
+    class SimpleNLP:
+        def __init__(self):
+            self.stop_words = {
+                'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", 
+                "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 
+                'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 
+                'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 
+                'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 
+                'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 
+                'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 
+                'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 
+                'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 
+                'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 
+                'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 
+                'too', 'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 
+                'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't", 
+                'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 
+                'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', 
+                "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 
+                'wouldn', "wouldn't"
+            }
+        
+        def __call__(self, text):
+            # Return a simple object with basic NLP methods
+            return SimpleDoc(text, self.stop_words)
+    
+    class SimpleDoc:
+        def __init__(self, text, stop_words):
+            self.text = text
+            self.stop_words = stop_words
+            self.ents = []
+            self.noun_chunks = []
+        
+        def __iter__(self):
+            # Simple tokenization
+            tokens = self.text.split()
+            for token in tokens:
+                yield SimpleToken(token)
+    
+    class SimpleToken:
+        def __init__(self, text):
+            self.text = text
+            self.lemma_ = text.lower()
+            self.is_stop = text.lower() in nlp.stop_words if hasattr(nlp, 'stop_words') else False
+            self.is_punct = False  # Simplified
+            self.is_space = text.isspace()
+    
+    # Create the fallback NLP object
+    nlp = SimpleNLP()
 
 class SkillNormalizer:
     def __init__(self):
@@ -190,6 +246,12 @@ def preprocess_text(text):
 
 def extract_skills_with_weights(text):
     """Enhanced skill extraction with better pattern matching"""
+
+    if not hasattr(nlp, 'load') or nlp is None:
+        # Fallback skill extraction without spaCy
+        logger.warning("Using fallback skill extraction")
+        return simple_skill_extraction(text)
+    
     doc = nlp(text.lower())
     skills = defaultdict(int)
     
@@ -674,3 +736,25 @@ def generate_enhanced_summary(job_text):
         summary_parts.append(f"Location: {location_match.group(1).title()}")
     
     return " • ".join(summary_parts) if summary_parts else "Comprehensive job description analysis available"
+
+def simple_skill_extraction(text):
+    """Fallback skill extraction without spaCy"""
+    skills = {}
+    text_lower = text.lower()
+    
+    # Common skills to look for
+    common_skills = {
+        'python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'ruby', 'php',
+        'django', 'flask', 'fastapi', 'spring', 'react', 'angular', 'vue', 'node',
+        'tensorflow', 'pytorch', 'scikit-learn', 'machine learning', 'ai',
+        'aws', 'azure', 'gcp', 'docker', 'kubernetes',
+        'postgresql', 'mysql', 'mongodb', 'sql', 'git', 'html', 'css'
+    }
+    
+    for skill in common_skills:
+        if skill in text_lower:
+            # Simple scoring based on occurrence
+            count = text_lower.count(skill)
+            skills[skill] = min(5, 1 + count * 0.5)  # Basic weight calculation
+    
+    return skills

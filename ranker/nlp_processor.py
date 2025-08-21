@@ -21,56 +21,72 @@ logger = logging.getLogger(__name__)
 import logging
 logger = logging.getLogger(__name__)
 
-# SpaCy model loading with comprehensive error handling
+# Try to import spaCy, but provide fallbacks if it fails
 try:
-    # First try to load the small model
-    nlp = spacy.load("en_core_web_sm")
-    logger.info("Successfully loaded en_core_web_sm model")
-except OSError:
+    import spacy
+    SPACY_AVAILABLE = True
+except ImportError:
+    SPACY_AVAILABLE = False
+    logger.warning("spaCy not available. Using fallback text processing.")
+
+# Try to load the model with multiple fallbacks
+if SPACY_AVAILABLE:
     try:
-        # Try to download and load the model
-        logger.info("Downloading en_core_web_sm model...")
-        import subprocess
-        import sys
-        subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+        # First try to load the small model
         nlp = spacy.load("en_core_web_sm")
-        logger.info("Successfully downloaded and loaded en_core_web_sm model")
-    except Exception as e:
-        logger.error(f"Failed to download spaCy model: {e}")
-        # Create a minimal fallback
-        nlp = None
-except Exception as e:
-    logger.error(f"Error loading spaCy model: {e}")
+        logger.info("Successfully loaded en_core_web_sm model")
+    except OSError:
+        try:
+            # Try to download the model
+            logger.info("Downloading en_core_web_sm model...")
+            import subprocess
+            import sys
+            result = subprocess.run([
+                sys.executable, "-m", "spacy", "download", "en_core_web_sm"
+            ], capture_output=True, text=True, timeout=300)
+            
+            if result.returncode == 0:
+                nlp = spacy.load("en_core_web_sm")
+                logger.info("Successfully downloaded and loaded en_core_web_sm model")
+            else:
+                raise Exception(f"spaCy download failed: {result.stderr}")
+                
+        except Exception as e:
+            logger.error(f"Failed to load spaCy model: {e}")
+            # Fallback to simple processing
+            nlp = None
+else:
     nlp = None
 
-# If spaCy is not available, create a simple fallback processor
+# Create a comprehensive fallback system
 if nlp is None:
-    logger.warning("SpaCy model not available. Using fallback text processing.")
+    logger.warning("SpaCy not available. Using fallback text processing.")
     
     class SimpleNLP:
         def __init__(self):
             self.stop_words = {
-                'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", 
-                "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 
-                'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 
-                'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 
-                'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 
-                'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 
-                'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 
-                'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 
-                'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 
-                'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 
-                'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 
-                'too', 'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 
-                'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't", 
-                'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 
-                'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', 
-                "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 
-                'wouldn', "wouldn't"
+                'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", 
+                "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 
+                'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', 
+                "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 
+                'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 
+                'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 
+                'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 
+                'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 
+                'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 
+                'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 
+                'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 
+                'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 
+                'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 
+                'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 
+                'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', 
+                "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', 
+                "hasn't", 'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 
+                'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 
+                'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"
             }
         
         def __call__(self, text):
-            # Return a simple object with basic NLP methods
             return SimpleDoc(text, self.stop_words)
     
     class SimpleDoc:
@@ -81,21 +97,20 @@ if nlp is None:
             self.noun_chunks = []
         
         def __iter__(self):
-            # Simple tokenization
             tokens = self.text.split()
             for token in tokens:
-                yield SimpleToken(token)
+                yield SimpleToken(token, self.stop_words)
     
     class SimpleToken:
-        def __init__(self, text):
+        def __init__(self, text, stop_words):
             self.text = text
             self.lemma_ = text.lower()
-            self.is_stop = text.lower() in nlp.stop_words if hasattr(nlp, 'stop_words') else False
-            self.is_punct = False  # Simplified
+            self.is_stop = text.lower() in stop_words
+            self.is_punct = not text.isalnum()
             self.is_space = text.isspace()
     
-    # Create the fallback NLP object
     nlp = SimpleNLP()
+
 
 class SkillNormalizer:
     def __init__(self):
@@ -223,13 +238,22 @@ def extract_text(file_path):
 
 def preprocess_text(text):
     """More sophisticated text processing with fallback"""
-    if nlp is None:
-        # Basic fallback processing without spaCy
+    if hasattr(nlp, 'load'):  # Real spaCy
+        doc = nlp(text.lower())
+        tokens = [
+            token.lemma_ 
+            for token in doc 
+            if not token.is_stop 
+            and not token.is_punct 
+            and not token.is_space
+            and len(token.lemma_) > 2
+        ]
+        return " ".join(tokens)
+    else:
+        # Fallback processing
         text = text.lower()
-        # Simple tokenization and stopword removal
         tokens = text.split()
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
-        tokens = [token for token in tokens if token not in stop_words and len(token) > 2]
+        tokens = [token for token in tokens if token not in nlp.stop_words and len(token) > 2]
         return " ".join(tokens)
     
     doc = nlp(text.lower())

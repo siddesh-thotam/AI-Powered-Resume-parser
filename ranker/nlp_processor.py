@@ -14,6 +14,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from collections import defaultdict
 from spacy.matcher import Matcher
 logger = logging.getLogger(__name__)
+import sys
+
 
  
 # Load medium/large model for better word vectors
@@ -21,14 +23,24 @@ logger = logging.getLogger(__name__)
 import logging
 logger = logging.getLogger(__name__)
 
+os.environ.setdefault('BLIS_COMPILER', 'NO_COMPILER')
+
 # Try to import spaCy, but provide fallbacks if it fails
 try:
     import spacy
     SPACY_AVAILABLE = True
 except ImportError:
     SPACY_AVAILABLE = False
-    logger.warning("spaCy not available. Using fallback text processing.")
 
+# Force fallback if in production
+if os.environ.get('RENDER') or not SPACY_AVAILABLE:
+    nlp = None
+    logger.warning("SpaCy not available. Using fallback text processing.")
+else:
+    try:
+        nlp = spacy.load("en_core_web_sm")
+    except:
+        nlp = None
 # Try to load the model with multiple fallbacks
 if SPACY_AVAILABLE:
     try:

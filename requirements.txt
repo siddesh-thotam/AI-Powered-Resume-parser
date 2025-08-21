@@ -8,6 +8,12 @@ scikit-learn==1.5.0
 numpy==1.26.4
 requests==2.32.3
 
-# Use a version of spaCy that has pre-built wheels for Python 3.11
+# Use pre-built wheels for spaCy and dependencies
 spacy==3.5.4
+--find-links https://github.com/explosion/wheelwright/releases/download/v3.5.4
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.5.0/en_core_web_sm-3.5.0-py3-none-any.whl
+
+# Add these to ensure pre-built wheels are used
+thinc==8.1.10
+blis==0.7.9
+cython==0.29.36

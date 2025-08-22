@@ -18,7 +18,7 @@ An intelligent web application that automatically **ranks resumes against job de
 ## 🚀 Live Demo  
 🔗 [Resume Ranker Live Demo](https://resume-ranker-gxvs.onrender.com)
 
-It will take few minutes to load the website because i am usimg render's free tier plan.
+It will take few minutes to load the website because i am using render's free tier plan.
 ---
 
 ## 🛠️ Technology Stack

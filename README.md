@@ -59,7 +59,7 @@ It will take few minutes to load the website because i am using render's free ti
 ```bash
 # 1. Clone repository
 git clone https://github.com/your-username/ai-resume-ranker.git
-cd ai-resume-ranker
+cd core
 
 # 2. Create virtual environment
 python -m venv venv

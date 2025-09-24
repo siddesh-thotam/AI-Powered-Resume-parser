@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const jobDescInput = document.getElementById('job-description');
     const resumeUpload = document.getElementById('resume-upload');
     const resultsContainer = document.getElementById('results-container');
+    const fileCounter = document.getElementById('file-counter');
 
     // Verify all required elements exist
     if (!analyzeBtn || !jobDescInput || !resumeUpload || !resultsContainer) {
@@ -11,7 +12,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Enhanced loading animation with segmented progress bar
+    // (Optional) show how many files selected
+    if (fileCounter) {
+        resumeUpload.addEventListener('change', () => {
+            const count = resumeUpload.files ? resumeUpload.files.length : 0;
+            fileCounter.textContent = count ? `${count} file(s) selected` : '';
+        });
+    }
+
+    // Show loading animation while processing
     function showLoadingState() {
         analyzeBtn.disabled = true;
         analyzeBtn.innerHTML = `
@@ -46,11 +55,12 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
+    // Hide the loading animation after processing
     function hideLoadingState() {
         analyzeBtn.disabled = false;
         analyzeBtn.innerHTML = `
             <span class="window-icon icon-search"></span>
-            Analyze Resumes
+            Analyze All Resumes
         `;
     }
 
@@ -128,329 +138,200 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function displayResults(data) {
-    try {
-        // Clear previous results
-        resultsContainer.innerHTML = '';
-        
-        // Validate data structure
-        if (!data?.results || !Array.isArray(data.results)) {
-            throw new Error('Invalid results format');
-        }
-        
-         if (data.jd_summary) {
-            const jdSummaryCard = document.createElement('div');
-            jdSummaryCard.className = 'feedback-card';
-            jdSummaryCard.innerHTML = `
-                <div class="feedback-header">
-                    <span class="feedback-icon">📋</span>
-                    Job Description Summary
-                </div>
-                <div class="feedback-section">
-                    <h3>What They're Looking For</h3>
-                    <div class="jd-summary">
-                        <p>${escapeHtml(data.jd_summary)}</p>
-                    </div>
-                </div>
-            `;
-            resultsContainer.appendChild(jdSummaryCard);
-        }
-
-
-        if (data.results.length === 0) {
-            resultsContainer.innerHTML = `
-                <div class="no-results">
-                    <p>No matching results found</p>
-                    <p style="color: #666; font-size: 12px; margin-top: 8px;">
-                        Try adjusting your job description or uploading different resume formats
-                    </p>
-                </div>
-            `;
-            return;
-        }
-
-        // Sort results by score (highest first)
-        const sortedResults = data.results.sort((a, b) => (b.score || 0) - (a.score || 0));
-
-        // Add results summary
-        const resultsHeader = document.createElement('div');
-        resultsHeader.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px; background: linear-gradient(to bottom, #f8f8f8, #e8e8e8); border: 1px solid #c0c0c0;">
-                <span style="font-weight: 500;">Analysis Complete</span>
-                <span style="color: #666; font-size: 12px;">${sortedResults.length} candidate(s) analyzed</span>
-            </div>
-        `;
-        resultsContainer.appendChild(resultsHeader);
-
-        // Create result cards
-        sortedResults.forEach((result, index) => {
-            if (!result || typeof result !== 'object') return;
+        try {
+            // Clear previous results
+            resultsContainer.innerHTML = '';
             
-            const card = document.createElement('div');
-            card.className = 'result-card-enhanced';
-            
-            // Safely handle possible missing properties
-            const filename = result.filename || 'Untitled Resume';
-            const score = typeof result.score === 'number' ? result.score : 0;
-            const details = result.details || {};
-            
-            // Determine rank emoji and score color
-            let rankEmoji = '📄';
-            let scoreClass = 'result-score';
-            if (index === 0 && score >= 70) rankEmoji = '🥇';
-            else if (index === 1 && score >= 60) rankEmoji = '🥈';
-            else if (index === 2 && score >= 50) rankEmoji = '🥉';
+            // Validate data structure
+            if (!data?.results || !Array.isArray(data.results)) {
+                throw new Error('Invalid results format');
+            }
 
-            // Set score color based on performance
-            let scoreStyle = '';
-            if (score >= 80) scoreStyle = 'background: linear-gradient(to bottom, #27ae60, #239954); border-color: #239954;';
-            else if (score >= 60) scoreStyle = 'background: linear-gradient(to bottom, #f39c12, #e67e22); border-color: #e67e22;';
-            else scoreStyle = 'background: linear-gradient(to bottom, #e74c3c, #c0392b); border-color: #c0392b;';
+            // === New: JD Summary + Tech Stack card ===
+            const jdSummary = data.jd_summary || '';
+            const jobSkills = data.job_skills || {}; // { skill: weight }
+            const jobSkillsSorted = Object.entries(jobSkills)
+                .sort((a, b) => (b[1] || 0) - (a[1] || 0))
+                .slice(0, 15);
 
-            card.innerHTML = `
-                <div class="result-header">
-                    <div class="result-filename">
-                        ${rankEmoji} ${escapeHtml(filename)}
+            if (jdSummary || jobSkillsSorted.length) {
+                const jdCard = document.createElement('div');
+                jdCard.className = 'feedback-card';
+                jdCard.innerHTML = `
+                    <div class="feedback-header">
+                        <span class="feedback-icon">🧭</span>
+                        Job Description Summary
                     </div>
-                    <div class="result-score" style="${scoreStyle}">
-                        ${score.toFixed(1)}%
-                    </div>
-                </div>
-                
-                <div class="score-bar">
-                    <div class="score-progress" style="width: ${score}%;"></div>
-                </div>
-                
-                <div class="result-details">
-                    <div class="detail-item">
-                        <div class="detail-label">Keywords</div>
-                        <div class="detail-value">${details.keywords || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Skills</div>
-                        <div class="detail-value">${details.skills || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Experience</div>
-                        <div class="detail-value">${details.experience || 'N/A'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Rank</div>
-                        <div class="detail-value">#${index + 1}</div>
-                    </div>
-                </div>
-                
-                ${details.skill_weights && Object.keys(details.skill_weights).length > 0 ? `
-                    <div style="margin-top: 12px; padding: 12px; background: #f0f8ff; border-top: 1px solid #ddd;">
-                        <div style="color: #666; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; font-weight: 500;">Skill Importance:</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                            ${Object.entries(details.skill_weights).map(([skill, weight]) => {
-                                const isMatched = details.matched_skills && details.matched_skills.includes(skill);
-                                const isMissing = details.missing_skills && details.missing_skills.includes(skill);
-                                const weightPercent = Math.round((weight / 5) * 100);
-                                const bgColor = isMatched ? 
-                                    `hsl(120, 100%, ${85 - weightPercent/4}%)` : 
-                                    `hsl(0, 100%, ${85 - weightPercent/4}%)`;
-                                return `
-                                    <span style="
-                                        background: ${bgColor};
-                                        border: 1px solid #ddd;
-                                        padding: 2px 6px;
-                                        border-radius: 2px;
-                                        font-size: 11px;
-                                        display: inline-block;
-                                        margin: 2px;
-                                        position: relative;
-                                    ">
+                    <div class="feedback-section">
+                        ${jdSummary ? `
+                            <h3>Summary</h3>
+                            <div class="jd-summary">
+                                <p>${escapeHtml(jdSummary)}</p>
+                            </div>
+                        ` : ''}
+
+                        ${jobSkillsSorted.length ? `
+                            <h3 style="margin-top: 12px;">Tech Stack (from JD)</h3>
+                            <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                ${jobSkillsSorted.map(([skill, weight]) => 
+                                    `<span class="skill-tag" title="Weight: ${Number(weight).toFixed ? Number(weight).toFixed(2) : weight}">
                                         ${escapeHtml(skill)}
-                                        <span style="
-                                            position: absolute;
-                                            bottom: -5px;
-                                            left: 0;
-                                            right: 0;
-                                            height: 2px;
-                                            background: ${isMatched ? '#27ae60' : '#e74c3c'};
-                                            width: ${weightPercent}%;
-                                        "></span>
-                                    </span>
-                                `;
-                            }).join('')}
-                        </div>
-                        <div style="margin-top: 8px; font-size: 11px; color: #666;">
-                            <span style="color: #27ae60;">■</span> = Has skill • 
-                            <span style="color: #e74c3c;">■</span> = Missing skill •
-                            Bar length = Importance
-                        </div>
-                    </div>
-                ` : ''}
-                
-                ${result.error ? `
-                    <div style="margin-top: 12px; padding: 12px; background: #fff5f5; border: 1px solid #e74c3c; color: #c53030;">
-                        ⚠️ Error: ${escapeHtml(result.error)}
-                    </div>
-                ` : ''}
-            `;
-            
-             resultsContainer.appendChild(card);
-
-            // Add Skill Gap Analysis Feedback Section
-            if (details.gap_analysis && details.gap_analysis.length > 0) {
-                const feedbackCard = document.createElement('div');
-                feedbackCard.className = 'feedback-card';
-                feedbackCard.innerHTML = `
-                    <div class="feedback-header">
-                        <span class="feedback-icon">📊</span>
-                        Feedback Report
-                    </div>
-                    
-                    <div class="feedback-section">
-                        <h3>Skill Gap Analysis</h3>
-                        <p>The candidate is missing these important skills:</p>
-                        
-                        <div class="skill-gap-container">
-                            ${details.gap_analysis.map(gap => `
-                                <div class="skill-gap-item">
-                                    <div class="skill-gap-skill">
-                                        <span class="skill-category ${gap.category.toLowerCase().replace(' ', '-')}">
-                                            ${gap.category}
-                                        </span>
-                                        ${escapeHtml(gap.skill)}
-                                    </div>
-                                    <div class="skill-gap-importance">
-                                        Importance: 
-                                        <span class="importance-level" style="width: ${gap.importance * 20}%">
-                                            ${gap.importance.toFixed(1)}/5
-                                        </span>
-                                    </div>
-                                    <div class="skill-suggestion">
-                                        ${generateSkillSuggestion(gap)}
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
+                                    </span>`
+                                ).join('')}
+                            </div>
+                        ` : ''}
                     </div>
                 `;
-                resultsContainer.appendChild(feedbackCard);
+                resultsContainer.appendChild(jdCard);
             }
+            // === End new JD card ===
 
-            // Add Strength Highlighting Section - THIS SHOULD BE INSIDE THE LOOP
-            if (details.strengths && details.strengths.length > 0) {
-                const strengthsCard = document.createElement('div');
-                strengthsCard.className = 'feedback-card';
-                strengthsCard.innerHTML = `
-                    <div class="feedback-header">
-                        <span class="feedback-icon">💪</span>
-                        Key Strengths
-                    </div>
-                    
-                    <div class="feedback-section">
-                        <h3>Candidate Strengths</h3>
-                        <p>Areas where this candidate excels:</p>
-                        
-                        <div class="strengths-container">
-                            ${details.strengths.map(strength => `
-                                <div class="strength-item">
-                                    <div class="strength-skill">
-                                        <span class="skill-category ${strength.category.toLowerCase().replace(' ', '-')}">
-                                            ${strength.category}
-                                        </span>
-                                        ${escapeHtml(strength.skill)}
-                                        ${strength.relevance === 'job-specific' ? 
-                                            '<span class="relevance-badge job-specific" title="Directly mentioned in job description">JD</span>' : 
-                                            '<span class="relevance-badge general" title="Generally valuable skill">GEN</span>'}
-                                    </div>
-                                    <div class="strength-level">
-                                        Strength: 
-                                        <span class="level-indicator" style="width: ${strength.strength_level * 20}%">
-                                            ${strength.strength_level.toFixed(1)}/5
-                                        </span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
+            if (data.results.length === 0) {
+                resultsContainer.innerHTML += `
+                    <div class="no-results">
+                        <p>No matching results found</p>
+                        <p style="color: #666; font-size: 12px; margin-top: 8px;">
+                            Try adjusting your job description or uploading different resume formats
+                        </p>
                     </div>
                 `;
-                resultsContainer.appendChild(strengthsCard);
+                return;
             }
-        });
 
-        // Add summary statistics if more than one result
-        if (sortedResults.length > 1) {
-            const avgScore = sortedResults.reduce((sum, r) => sum + (r.score || 0), 0) / sortedResults.length;
-            const highScore = Math.max(...sortedResults.map(r => r.score || 0));
-            
-            const summary = document.createElement('div');
-            summary.className = 'summary-stats';
-            summary.innerHTML = `
-                <h4>📈 Summary Statistics</h4>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-label">Average Score</div>
-                        <div class="stat-value">${avgScore.toFixed(1)}%</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Highest Score</div>
-                        <div class="stat-value" style="color: #27ae60;">${highScore.toFixed(1)}%</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Total Candidates</div>
-                        <div class="stat-value">${sortedResults.length}</div>
-                    </div>
+            // Sort results by score (highest first)
+            const sortedResults = data.results.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+            // Add results summary
+            const resultsHeader = document.createElement('div');
+            resultsHeader.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px; background: linear-gradient(to bottom, #f8f8f8, #e8e8e8); border: 1px solid #c0c0c0;">
+                    <span style="font-weight: 500;">Analysis Complete</span>
+                    <span style="color: #666; font-size: 12px;">${sortedResults.length} candidate(s) analyzed</span>
                 </div>
             `;
-            resultsContainer.appendChild(summary);
+            resultsContainer.appendChild(resultsHeader);
+
+            // Create result cards
+            sortedResults.forEach((result, index) => {
+                if (!result || typeof result !== 'object') return;
+                
+                const card = document.createElement('div');
+                card.className = 'result-card-enhanced';
+                
+                // Safely handle possible missing properties
+                const filename = result.filename || 'Untitled Resume';
+                const score = typeof result.score === 'number' ? result.score : 0;
+                const details = result.details || {};
+                
+                // Determine rank emoji
+                let rankEmoji = '📄';
+                if (index === 0 && score >= 70) rankEmoji = '🥇';
+                else if (index === 1 && score >= 60) rankEmoji = '🥈';
+                else if (index === 2 && score >= 50) rankEmoji = '🥉';
+
+                // Set score color based on performance
+                let scoreStyle = '';
+                if (score >= 80) scoreStyle = 'background: linear-gradient(to bottom, #27ae60, #239954); border-color: #239954;';
+                else if (score >= 60) scoreStyle = 'background: linear-gradient(to bottom, #f39c12, #e67e22); border-color: #e67e22;';
+                else scoreStyle = 'background: linear-gradient(to bottom, #e74c3c, #c0392b); border-color: #c0392b;';
+
+                card.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-filename">
+                            ${rankEmoji} ${escapeHtml(filename)}
+                        </div>
+                        <div class="result-score" style="${scoreStyle}">
+                            ${score.toFixed(1)}%
+                        </div>
+                    </div>
+                    
+                    <div class="score-bar">
+                        <div class="score-progress" style="width: ${score}%;"></div>
+                    </div>
+                    
+                    <div class="result-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Keywords</div>
+                            <div class="detail-value">${details.keywords || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Skills Match</div>
+                            <div class="detail-value">${details.skills || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Experience</div>
+                            <div class="detail-value">${details.experience || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Rank</div>
+                            <div class="detail-value">#${index + 1}</div>
+                        </div>
+                    </div>
+                    
+                    ${details.matched_skills && details.matched_skills.length > 0 ? ` 
+                        <div style="margin-top: 12px; padding: 12px; background: #f9f9f9; border-top: 1px solid #ddd;">
+                            <div style="color: #666; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; font-weight: 500;">Matched Skills:</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                ${details.matched_skills.map(skill => 
+                                    `<span class="skill-tag">${escapeHtml(skill)}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${details.missing_skills && details.missing_skills.length > 0 ? ` 
+                        <div style="margin-top: 8px; padding: 12px; background: #f9f9f9; border-top: 1px solid #ddd;">
+                            <div style="color: #666; font-size: 11px; margin-bottom: 8px; text-transform: uppercase; font-weight: 500;">Missing Skills (from JD):</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                ${details.missing_skills.map(skill => 
+                                    `<span class="missing-skill-tag">${escapeHtml(skill)}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${result.error ? `
+                        <div style="margin-top: 12px; padding: 12px; background: #fff5f5; border: 1px solid #e74c3c; color: #c53030;">
+                            ⚠️ Error: ${escapeHtml(result.error)}
+                        </div>
+                    ` : ''}
+                `;
+                
+                resultsContainer.appendChild(card);
+            });
+
+            // Add summary statistics if more than one result
+            if (sortedResults.length > 1) {
+                const avgScore = sortedResults.reduce((sum, r) => sum + (r.score || 0), 0) / sortedResults.length;
+                const highScore = Math.max(...sortedResults.map(r => r.score || 0));
+                
+                const summary = document.createElement('div');
+                summary.className = 'summary-stats';
+                summary.innerHTML = `
+                    <h4>📈 Summary Statistics</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Average Score</div>
+                            <div class="stat-value">${avgScore.toFixed(1)}%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Highest Score</div>
+                            <div class="stat-value" style="color: #27ae60;">${highScore.toFixed(1)}%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Total Candidates</div>
+                            <div class="stat-value">${sortedResults.length}</div>
+                        </div>
+                    </div>
+                `;
+                resultsContainer.appendChild(summary);
+            }
+
+        } catch (error) {
+            console.error('Error displaying results:', error);
+            showErrorDialog('Could not display results properly');
         }
-
-    } catch (error) {
-        console.error('Error displaying results:', error);
-        showErrorDialog('Could not display results properly');
     }
-}
-
-
-    // Helper function for skill suggestions
-    // Enhanced skill suggestion function
-function generateSkillSuggestion(skill) {
-    // Handle both object (from backend) and string (fallback) inputs
-    const skillName = typeof skill === 'object' && skill.skill ? skill.skill : skill;
-    const backendSuggestion = typeof skill === 'object' ? skill.suggestion : null;
-    
-    // Use the suggestion from backend if available
-    if (backendSuggestion) {
-        return backendSuggestion;
-    }
-    
-    // Fallback suggestions for when backend doesn't provide specific suggestions
-    const suggestions = {
-        'python': 'Build portfolio projects using Python with Django or Flask. Consider Python certifications from recognized institutions.',
-        'django': 'Create full-stack applications with Django REST framework. Take Django-specific courses on platforms like Udemy or Coursera.',
-        'flask': 'Build microservices with Flask and containerize with Docker. Learn authentication and security best practices.',
-        'machine learning': 'Complete ML courses on Coursera or edX. Build projects with scikit-learn and participate in Kaggle competitions.',
-        'tensorflow': 'Develop deep learning models with TensorFlow. Study neural network architectures and deployment strategies.',
-        'aws': 'Get AWS Cloud Practitioner or Solutions Architect certification. Practice with AWS Free Tier for hands-on experience.',
-        'docker': 'Containerize applications and learn Docker Compose. Study Kubernetes for container orchestration.',
-        'javascript': 'Build interactive web applications. Learn modern frameworks like React or Vue.js.',
-        'react': 'Create component-based UIs with React hooks. Learn state management with Redux or Context API.',
-        'sql': 'Practice complex queries and database design. Learn about optimization and indexing strategies.',
-        'postgresql': 'Study advanced PostgreSQL features like window functions. Learn about database administration.',
-        'git': 'Master Git workflows and branching strategies. Practice collaborative development with pull requests.',
-        'api': 'Build RESTful APIs with proper authentication. Learn OpenAPI/Swagger for documentation.',
-        'azure': 'Get Microsoft Azure certifications. Practice with Azure services for cloud applications.',
-        'kubernetes': 'Complete Kubernetes tutorials and get CKA certification. Practice with minikube for local development.',
-        'ml': 'Study machine learning fundamentals and algorithms. Practice with real datasets and problems.',
-        'ai': 'Learn about artificial intelligence concepts and applications. Build AI-powered projects.'
-    };
-    
-    // Find the best matching suggestion
-    const skillLower = skillName.toLowerCase();
-    for (const [key, suggestion] of Object.entries(suggestions)) {
-        if (skillLower.includes(key)) {
-            return suggestion;
-        }
-    }
-    
-    // Default suggestion for unknown skills
-    return 'Develop this skill through online courses, practical projects, or professional certifications. Consider platforms like Coursera, Udemy, or official certification programs.';
-}
 
     function showErrorDialog(message) {
         // Create Windows-style error dialog
@@ -524,101 +405,4 @@ function generateSkillSuggestion(skill) {
         return null;
     }
 
-    // Add CSS animations for the new design
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes progress-loading {
-            0% { width: 0%; }
-            50% { width: 70%; }
-            100% { width: 100%; }
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .result-card-enhanced {
-            animation: fadeIn 0.4s ease forwards;
-        }
-        
-        .status-dialog {
-            animation: fadeIn 0.2s ease forwards;
-        }
-    `;
-    document.head.appendChild(style);
-
-    // Enhanced file upload with drag and drop
-    const fileUploadArea = resumeUpload.parentElement;
-    
-    // Drag and drop events
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        fileUploadArea.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        fileUploadArea.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        fileUploadArea.addEventListener(eventName, unhighlight, false);
-    });
-
-    function highlight(e) {
-        fileUploadArea.style.borderColor = '#0078d4';
-        fileUploadArea.style.backgroundColor = '#f0f8ff';
-    }
-
-    function unhighlight(e) {
-        fileUploadArea.style.borderColor = '';
-        fileUploadArea.style.backgroundColor = '';
-    }
-
-    fileUploadArea.addEventListener('drop', handleDrop, false);
-
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        resumeUpload.files = files;
-        
-        // Show file count
-        updateFileCounter();
-        
-        // Trigger change event
-        const event = new Event('change', { bubbles: true });
-        resumeUpload.dispatchEvent(event);
-    }
-
-    // File counter
-    resumeUpload.addEventListener('change', updateFileCounter);
-
-    function updateFileCounter() {
-        const fileCount = resumeUpload.files.length;
-        const existingCounter = fileUploadArea.querySelector('.file-counter');
-        
-        if (existingCounter) {
-            existingCounter.remove();
-        }
-        
-        if (fileCount > 0) {
-            const counter = document.createElement('div');
-            counter.className = 'file-counter';
-            counter.style.cssText = `
-                margin-top: 8px;
-                color: #666;
-                font-size: 12px;
-                text-align: center;
-            `;
-            counter.textContent = `${fileCount} file${fileCount > 1 ? 's' : ''} selected`;
-            fileUploadArea.appendChild(counter);
-        }
-    }
-
-    // Initialize file counter on page load
-    updateFileCounter();
 });

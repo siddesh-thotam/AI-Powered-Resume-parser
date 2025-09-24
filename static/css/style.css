@@ -537,7 +537,7 @@ textarea:focus, input:focus {
 
 /* Skill Tags */
 .skill-tag {
-    background: linear-gradient(to bottom, var(--accent-yellow), #CCCC00);
+    background: linear-gradient(to bottom, var(--accent-green), #28A745); /* Green background */
     border: 1px solid var(--border-color);
     padding: 2px 6px;
     border-radius: 2px;

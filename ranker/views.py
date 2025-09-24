@@ -98,7 +98,7 @@ class RankAPI(APIView):
             except Exception as e:
                 logger.error(f"Skill extraction failed: {str(e)}")
                 weighted_job_skills = {}
-            
+
             results = []
             for resume_file in resumes:
                 result = {
@@ -168,10 +168,13 @@ class RankAPI(APIView):
                     logger.error(f"Failed to process {resume_file.name}: {traceback.format_exc()}")
                 
                 results.append(result)
-            
+
+            # Sort results by score (highest first)
+            sorted_results = sorted(results, key=lambda x: x['score'], reverse=True)
+
             return Response({
                 'success': True,
-                'results': results,
+                'results': sorted_results,
                 'job_skills': weighted_job_skills,
                 'jd_summary': jd_summary,
             })
@@ -185,6 +188,7 @@ class RankAPI(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 def index_view(request):
     return render(request, 'ranker/index.html')

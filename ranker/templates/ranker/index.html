@@ -5,7 +5,7 @@
 <div class="container">
     <div class="header">
         <h1>Resume Analysis Tool</h1>
-        <p>Upload job description and resumes for intelligent matching</p>
+        <p>Upload job description and multiple resumes for intelligent matching</p>
     </div>
 
     <div class="card">
@@ -27,7 +27,7 @@
     <div class="card">
         <div class="card-header">
             <span class="window-icon icon-folder"></span>
-            Resume Upload
+            Resume Upload (Max: 10 files)
         </div>
         <div class="card-content">
             <div class="form-group">
@@ -41,8 +41,9 @@
                     >
                 </div>
                 <p style="color: #666; font-size: 12px; margin-top: 8px;">
-                    Supported formats: PDF, DOCX, TXT
+                    Supported formats: PDF, DOCX, TXT • Maximum 10 files
                 </p>
+                <div id="file-counter" style="color: #666; font-size: 12px; margin-top: 4px;"></div>
             </div>
         </div>
     </div>
@@ -50,7 +51,7 @@
     <div class="text-center mb-4">
         <button id="analyze-btn" class="btn btn-primary">
             <span class="window-icon icon-search"></span>
-            Analyze Resumes
+            Analyze All Resumes
         </button>
     </div>
 
@@ -62,7 +63,7 @@
         <div class="card-content">
             <div id="results-container" class="results-container">
                 <div class="no-results">
-                    Upload resumes and click "Analyze" to see results
+                    Upload resumes and click "Analyze" to see ranked results
                 </div>
             </div>
         </div>
